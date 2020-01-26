@@ -1,5 +1,0 @@
-package expose
-
-func Load() {
-
-}

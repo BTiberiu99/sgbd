@@ -1,30 +1,73 @@
 package db
 
-import "sgbd4/go/translate"
+import (
+	"context"
+	"log"
+	"sgbd4/go/translate"
+	"sync"
+)
 
-import "fmt"
+type Tables []*Table
 
-type Tables struct {
-	Tables []Table
-}
+//Load all informations about tables from database
+func CreateTables() Tables {
+	query, _ := translate.QT("tables")
 
-func (t *Tables) LoadTables() error {
-	qry, _ := translate.QT("tables")
-
-	tables, err := db.Conx().Query(qry)
+	rows, err := db.Conx().QueryContext(context.Background(), query)
 
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
-	table := map[string]interface{}{}
+	t := make([]*Table, 0)
 
-	for tables.Next() {
-		tables.Scan(table)
-		// fmt.Println(table)
+	defer rows.Close()
+
+	group := &sync.WaitGroup{}
+	i := 0
+	for rows.Next() {
+
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			// Check for a scan error.
+			// Query rows will be closed with defer.
+			log.Fatal(err)
+
+		}
+
+		t = append(t, &Table{
+			Name:    name,
+			Columns: []Column{},
+		})
+
+		group.Add(1)
+
+		go func(t *Table) {
+
+			t.LoadTable()
+
+			group.Done()
+
+		}(t[i])
+
+		i++
+
 	}
 
-	fmt.Println(table)
+	group.Wait()
 
-	return nil
+	// If the database is being written to ensure to check for Close
+	// errors that may be returned from the driver. The query may
+	// encounter an auto-commit error and be forced to rollback changes.
+	rerr := rows.Close()
+	if rerr != nil {
+		log.Fatal(err)
+	}
+
+	// Rows.Err will report the last error encountered by Rows.Scan.
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	return Tables(t)
 }

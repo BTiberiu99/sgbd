@@ -1,26 +1,26 @@
-import 'babel-polyfill';
-import Vue from 'vue';
+import 'babel-polyfill'
 
-import 'vuetify/dist/vuetify.min.css';
-import '@mdi/font/css/materialdesignicons.css';
+import Vue from 'vue'
+import 'vuetify/dist/vuetify.min.css'
+import '@mdi/font/css/materialdesignicons.css'
 
-import App from './App.vue';
+import App from './App.vue'
 
 import Vuetify from 'vuetify'
 import '@/plugins'
+
+import * as Wails from '@wailsapp/runtime'
+
+import { WAILSINIT } from '@/store/events'
 
 Vue.use(Vuetify)
 const opts = { theme: { dark: false } }
 
 var vuetify = new Vuetify(opts)
-Vue.config.productionTip = false;
-Vue.config.devtools = true;
-
-import * as Wails from '@wailsapp/runtime';
+Vue.config.productionTip = false
+Vue.config.devtools = true
 
 var cApp = null
-
-
 
 function parse (key) {
 	return async function () {
@@ -30,15 +30,22 @@ function parse (key) {
 			transformedArguments.push(JSON.stringify(arguments[i]))
 		}
 
-		console.log('SEND==>', transformedArguments)
-		const response = await window.backend[key](...transformedArguments)
-		console.log('RECIVE<==', JSON.parse(response))
-		return JSON.parse(response)
+		console.log('SEND ==>', transformedArguments)
+		var response = await window.backend[key](...transformedArguments)
+		try {
+			if (typeof response === 'string') {
+				response = JSON.parse(response)
+			}
+			console.log('RECEIVE <==', response)
+
+			return response
+		} catch (e) { console.log(e) }
+
+		return false
 	}
 }
 Wails.Init(() => {
 	if (cApp == null) {
-
 		var functions = {}
 		Object.keys(window.backend).map(key => {
 			functions[key] = parse(key)
@@ -48,12 +55,8 @@ Wails.Init(() => {
 		cApp = new Vue({
 			vuetify,
 			render: h => h(App)
-		}).$mount('#app');
-
-
+		}).$mount('#app')
 	} else {
-
-		cApp.$root.$emit('wailsinit')
+		cApp.$root.$emit(WAILSINIT)
 	}
-
-});
+})

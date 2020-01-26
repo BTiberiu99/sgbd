@@ -16,6 +16,7 @@ func NewStore() store {
 }
 
 func init() {
+
 	file, err := ioutil.ReadFile(fileNameStore)
 	if err != nil {
 		return
@@ -24,5 +25,6 @@ func init() {
 	store := NewStore()
 
 	_ = json.Unmarshal([]byte(file), &store)
-	fmt.Println(store)
+
+	fmt.Println(NewStore())
 }

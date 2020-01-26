@@ -10,7 +10,7 @@ import (
 	"sgbd4/go/utils"
 )
 
-func CreateConnection(str string) string {
+func CreateConnection(str string) response.Message {
 	conn := &db.Connection{}
 
 	json.Unmarshal([]byte(str), &conn)
@@ -18,32 +18,32 @@ func CreateConnection(str string) string {
 	err := conn.CheckConnection()
 
 	if err != nil {
-		return (&response.Message{
+		return response.Message{
 			Type:    legend.TypeError,
 			Message: translate.T("fail_connection", err.Error()),
-		}).String()
+		}
 	}
 
 	if _, exist := store.NewStore().Get(conn.SafeString()); exist {
-		return (&response.Message{
+		return response.Message{
 			Type:    legend.TypeWarning,
 			Message: translate.T("exist_connection", conn.Database),
-		}).String()
+		}
 	}
 
 	store.NewStore().Add(*conn)
 
 	db.UpdateConnection(conn)
 
-	return (&response.Message{
+	return response.Message{
 		Type:    legend.TypeSucces,
 		Message: translate.T("succes_connection"),
 		Data:    db.NewSafeConnectionFromConnection(conn),
-	}).String()
+	}
 
 }
 
-func RemoveConnection(str string) string {
+func RemoveConnection(str string) response.Message {
 
 	safeConn := &db.SafeConnection{}
 
@@ -51,14 +51,14 @@ func RemoveConnection(str string) string {
 
 	store.NewStore().Remove(utils.DecryptString(safeConn.Index))
 
-	return (&response.Message{
+	return response.Message{
 		Type:    legend.TypeSucces,
 		Message: translate.T("succes_remove_connection", safeConn.Name),
 		Data:    GetConnections(),
-	}).String()
+	}
 }
 
-func GetConnections() string {
+func GetConnections() []db.SafeConnection {
 
 	connections := store.NewStore().Connections()
 
@@ -69,34 +69,46 @@ func GetConnections() string {
 		safeConnections[j] = db.NewSafeConnectionFromConnection(&con)
 		j++
 	}
-	data, err := json.Marshal(safeConnections)
 
-	if err != nil {
-		return ""
-	}
-
-	return string(data)
+	return safeConnections
 }
 
-func SwitchConnection(str string) string {
+func SwitchConnection(str string) response.Message {
 	safeConn := &db.SafeConnection{}
 
 	json.Unmarshal([]byte(str), &safeConn)
 
-	conn, exist := store.NewStore().Get(utils.DecryptString(safeConn.Index))
+	conn, exist := store.NewStore().Get(safeConn.Index)
 
 	if !exist {
-		return (&response.Message{
+		return response.Message{
 			Type:    legend.TypeError,
 			Message: translate.T("not_exist_connection", safeConn.Name),
-		}).String()
+		}
 	}
 
-	db.UpdateConnection(&conn)
+	err := db.UpdateConnection(&conn)
 
-	return (&response.Message{
+	store.NewStore().Save()
+
+	if err != nil {
+		return response.Message{
+			Type:    legend.TypeError,
+			Message: translate.T("fail_connection", err.Error()),
+		}
+	}
+
+	return response.Message{
 		Type:    legend.TypeSucces,
 		Message: translate.T("succes_connection"),
 		Data:    safeConn,
-	}).String()
+	}
+}
+
+func AddNotNull(table, column string) response.Message {
+
+	return response.Message{
+		Type:    legend.TypeSucces,
+		Message: translate.T("succes_add_not_null"),
+	}
 }

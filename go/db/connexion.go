@@ -15,7 +15,7 @@ type Connection struct {
 	Password string `json:"password"`
 	Database string `json:"database"`
 	con      *sql.DB
-	Tables   []Tables
+	database *Tables
 }
 
 func (c *Connection) String() string {
@@ -59,7 +59,7 @@ func (c *Connection) CheckConnection() error {
 func (c *Connection) createConnection() error {
 
 	con, err := sql.Open("postgres", c.String())
-	fmt.Println(con, err)
+
 	if err != nil {
 		return err
 	}
@@ -67,4 +67,17 @@ func (c *Connection) createConnection() error {
 	c.con = con
 
 	return nil
+}
+
+func (c *Connection) Tables() *Tables {
+
+	if c.database == nil {
+		c.database = new(Tables)
+	}
+
+	database := CreateTables()
+
+	c.database = &database
+
+	return c.database
 }
