@@ -8,5 +8,7 @@ var (
 		"no_connection":            "Trebuie sa stabilit intai o conexiune!",
 		"exist_connection":         "Conexiunea %s exista deja !",
 		"not_exist_connection":     "Conexiunea %s nu exista! Trebuie sa o creati intai!",
+		"succes_add_not_null":      "S-a adaugat cu succes constrangerea not null pentru coloana %s",
+		"fail_add_not_null":        "Nu s-a putu adauga constrangearae not null pentru coloana %s",
 	}
 )

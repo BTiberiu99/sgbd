@@ -11,7 +11,7 @@ import (
 
 type Column struct {
 	Name        string
-	Constraints []Constrain
+	Constraints []Constraint
 	Type        string
 	Position    int
 	sync        func(func())
@@ -62,7 +62,7 @@ func (c *Column) loadQuery(query string) {
 			// Query rows will be closed with defer.
 			log.Fatal(err)
 
-			// c.Constraints = append(c.Constraints, Constrain{})
+			// c.Constraints = append(c.Constraints, Constraint{})
 
 		}
 
@@ -84,45 +84,54 @@ func (c *Column) loadQuery(query string) {
 	}
 }
 
+func (c *Column) AddNotNull(table string) error {
+
+	query, _ := translate.QT("not_null", table, c.Name)
+
+	_, err := db.Conx().ExecContext(context.Background(), query)
+
+	return err
+}
+
 func (c *Column) AddConstrain(name, constrainType string) {
 	c.existOrCreateSync()
 	c.sync(func() {
-		c.Constraints = append(c.Constraints, Constrain{Name: name, Type: strings.ToUpper(constrainType)})
+		c.Constraints = append(c.Constraints, Constraint{Name: name, Type: strings.ToUpper(constrainType)})
 	})
 
 }
 
 func (c *Column) HasUnique() bool {
-	return c.iterateConstrains(func(c *Constrain) bool {
+	return c.iterateConstrains(func(c *Constraint) bool {
 		return c.IsUnique()
 	})
 }
 
 func (c *Column) HasNotNull() bool {
-	return c.iterateConstrains(func(c *Constrain) bool {
+	return c.iterateConstrains(func(c *Constraint) bool {
 		return c.IsNotNull() && !c.IsPrimaryKey()
 	})
 }
 
 func (c *Column) HasPrimaryKey() bool {
-	return c.iterateConstrains(func(c *Constrain) bool {
+	return c.iterateConstrains(func(c *Constraint) bool {
 		return c.IsPrimaryKey()
 	})
 }
 
 func (c *Column) HasForeignKey() bool {
-	return c.iterateConstrains(func(c *Constrain) bool {
+	return c.iterateConstrains(func(c *Constraint) bool {
 		return c.IsForeignKey()
 	})
 }
 
 func (c *Column) HasCheck() bool {
-	return c.iterateConstrains(func(c *Constrain) bool {
+	return c.iterateConstrains(func(c *Constraint) bool {
 		return c.IsCheck()
 	})
 }
 
-func (c *Column) iterateConstrains(s func(c *Constrain) bool) bool {
+func (c *Column) iterateConstrains(s func(c *Constraint) bool) bool {
 	for i := range c.Constraints {
 		if s(&c.Constraints[i]) {
 			return true

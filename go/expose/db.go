@@ -106,9 +106,33 @@ func SwitchConnection(str string) response.Message {
 }
 
 func AddNotNull(table, column string) response.Message {
+	col := &db.Column{}
+
+	err := json.Unmarshal([]byte(column), &col)
+
+	if err != nil {
+		return response.Message{
+			Type:    legend.TypeError,
+			Message: translate.T("fail_add_not_null", col.Name),
+		}
+	}
+
+	err = col.AddNotNull(table)
+
+	if err != nil {
+		return response.Message{
+			Type:    legend.TypeError,
+			Message: translate.T("fail_add_not_null", col.Name),
+		}
+	}
+
+	col.Constraints = []db.Constraint{}
+	col.LoadConstrains(table)
+	col.LoadCheckConstrains(table)
 
 	return response.Message{
 		Type:    legend.TypeSucces,
-		Message: translate.T("succes_add_not_null"),
+		Message: translate.T("succes_add_not_null", column),
+		Data:    col,
 	}
 }

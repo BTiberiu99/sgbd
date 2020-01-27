@@ -183,7 +183,7 @@ export default {
       this.$root.$on(CREATECONNECTION, this.createConnection)
       this.$root.$on(REFRESHTABLES, this.getTables)
     },
-    init () {
+    async init () {
       this.registerEvents()
       this.takeConnections()
       this.getTables()

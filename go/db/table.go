@@ -82,7 +82,7 @@ func (t *Table) AddColumn(name, sqlType string, position int) {
 		Name:        name,
 		Position:    position,
 		Type:        strings.ToUpper(sqlType),
-		Constraints: []Constrain{},
+		Constraints: []Constraint{},
 	}
 
 	t.Columns = append(t.Columns, c)

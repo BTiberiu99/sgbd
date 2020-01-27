@@ -20,10 +20,26 @@ export default function (column) {
 
     for (i in column) {
         if (i === indexConstraints) {
-            this[i] = column[i].map(constrain => {
+            var constraints = column[i].map(constrain => {
                 const cst = new Constraint(constrain)
                 cst.$obs.subscribe(reset)
                 return cst
+            })
+
+            this[i] = new Proxy(constraints, {
+                get: function (target, name) {
+                    return target[name]
+                },
+                set: function (target, name, val) {
+                    if (val instanceof Constraint) {
+                        val.$obs.unsubscribe(reset)
+                        val.$obs.subscribe(reset)
+                    }
+
+                    target[name] = val
+
+                    return true
+                }
             })
         } else {
             this[i] = column[i]

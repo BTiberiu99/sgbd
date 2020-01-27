@@ -4,27 +4,27 @@ import "strings"
 
 import "sgbd4/go/legend"
 
-type Constrain struct {
+type Constraint struct {
 	Name string
 	Type string
 }
 
-func (c *Constrain) IsPrimaryKey() bool {
+func (c *Constraint) IsPrimaryKey() bool {
 	return strings.Contains(c.Type, legend.PRIMARYKEY)
 }
 
-func (c *Constrain) IsForeignKey() bool {
+func (c *Constraint) IsForeignKey() bool {
 	return strings.Contains(c.Type, legend.FOREIGNKEY)
 }
 
-func (c *Constrain) IsNotNull() bool {
+func (c *Constraint) IsNotNull() bool {
 	return strings.Contains(c.Type, legend.NOTNULL)
 }
 
-func (c *Constrain) IsCheck() bool {
+func (c *Constraint) IsCheck() bool {
 	return strings.Contains(c.Type, legend.CHECK)
 }
 
-func (c *Constrain) IsUnique() bool {
+func (c *Constraint) IsUnique() bool {
 	return strings.Contains(c.Type, legend.UNIQUE)
 }

@@ -27,7 +27,7 @@ function parse (key) {
 		const transformedArguments = []
 		let i
 		for (i in arguments) {
-			transformedArguments.push(JSON.stringify(arguments[i]))
+			transformedArguments.push(typeof arguments[i] === 'object' ? JSON.stringify(arguments[i]) : arguments[i])
 		}
 
 		console.log('SEND ==>', transformedArguments)

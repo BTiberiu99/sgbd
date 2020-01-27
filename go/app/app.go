@@ -31,6 +31,7 @@ func LoadApp() {
 		app.Bind(expose.SwitchConnection)
 		app.Bind(expose.RemoveConnection)
 		app.Bind(expose.GetConnections)
+		app.Bind(expose.AddNotNull)
 
 		//Run SQL
 		app.Bind(expose.Run)

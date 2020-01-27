@@ -17,10 +17,26 @@ export default function (table) {
 
     for (i in table) {
         if (i === indexColumns) {
-            this[i] = table[i].map(column => {
+            var columns = table[i].map(column => {
                 const col = new Column(column)
                 col.$obs.subscribe(reset)
                 return col
+            })
+
+            this[i] = new Proxy(columns, {
+                get: function (target, name) {
+                    return target[name]
+                },
+                set: function (target, name, val) {
+                    if (val instanceof Column) {
+                        val.$obs.unsubscribe(reset)
+                        val.$obs.subscribe(reset)
+                    }
+
+                    target[name] = val
+
+                    return true
+                }
             })
         } else {
             this[i] = table[i]
@@ -41,6 +57,12 @@ export default function (table) {
 
     this.IsSafe = function () {
         return this.HasOneNotNull() & this.HasPrimaryKey()
+    }
+
+    this.modifyColumns = function (index, column) {
+        column.$obs.subscribe(reset)
+        this.Columns[index] = column
+        reset()
     }
 
     return this
