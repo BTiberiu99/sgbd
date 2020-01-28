@@ -46,7 +46,14 @@ export default function (table) {
     for (i in has) {
         const [func, recalc] = cache(has[i], this)
 
-        this[i] = func
+        Object.defineProperty(this, i, {
+            get () {
+                return func()
+            },
+            set () {
+
+            }
+        })
 
         resetCache.push(recalc)
     }
@@ -55,15 +62,14 @@ export default function (table) {
         reset()
     })
 
-    this.IsSafe = function () {
-        return this.HasOneNotNull() & this.HasPrimaryKey()
-    }
+    Object.defineProperty(this, 'IsSafe', {
+        get () {
+            return this.HasOneNotNull && this.HasPrimaryKey && this.HasCorrectPrimaryKey
+        },
+        set () {
 
-    this.modifyColumns = function (index, column) {
-        column.$obs.subscribe(reset)
-        this.Columns[index] = column
-        reset()
-    }
+        }
+    })
 
     return this
 }
@@ -83,12 +89,60 @@ const iterateColumns = function (call, vm) {
 const has = {
     HasOneNotNull: function () {
         return iterateColumns((column) => {
-            return column.HasNotNull()
+            return column.HasNotNull
         }, this)
     },
     HasPrimaryKey: function () {
         return iterateColumns((column) => {
-            return column.HasPrimaryKey()
+            return column.HasPrimaryKey
         }, this)
+    },
+    HasCorrectPrimaryKey: function () {
+        if (!this.HasPrimaryKey) {
+            return false
+        }
+
+        var countPrimaryKeyNumber = 0
+        var isNumericPrimaryKey = true
+        iterateColumns((column) => {
+            if (column.HasPrimaryKey) {
+                if (!column.IsNumeric) {
+                    isNumericPrimaryKey = false
+                } else {
+                    countPrimaryKeyNumber++
+                }
+            }
+
+            return false
+        }, this)
+
+        return countPrimaryKeyNumber < 2 && isNumericPrimaryKey
+    },
+
+    Hint: function () {
+        if (this.IsSafe) {
+            return ''
+        }
+        var start = `Tabelul ${this.Name} nu are `
+        var notnull = 'cel putin o coloana not null inafara de cheia primara '
+        var correctPrimaryKey = 'o cheie primara formata corect '
+        var primaryKey = ' o cheie primara '
+        var hint = ''
+        var si = 'si '
+        var and = false
+        if (!this.HasOneNotNull) {
+            hint += `${notnull}`
+            and = true
+        }
+
+        if (!this.HasPrimaryKey) {
+            hint += (and ? si : '') + primaryKey
+        }
+
+        if (this.HasPrimaryKey && !this.HasCorrectPrimaryKey) {
+            hint += (and ? si : '') + correctPrimaryKey
+        }
+
+        return start + hint
     }
 }

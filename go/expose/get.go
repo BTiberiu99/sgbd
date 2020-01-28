@@ -7,7 +7,6 @@ import (
 func GetTables() *db.Tables {
 	// fmt.Println(db.DB())
 
-	// fmt.Println(db.DB().Tables())
 	return db.DB().Tables()
 
 }

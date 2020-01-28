@@ -37,7 +37,7 @@ func CreateTables() Tables {
 
 		t = append(t, &Table{
 			Name:    name,
-			Columns: []Column{},
+			Columns: []*Column{},
 		})
 
 		group.Add(1)

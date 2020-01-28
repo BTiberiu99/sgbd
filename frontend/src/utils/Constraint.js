@@ -22,7 +22,14 @@ export default function (constraint) {
     for (i in is) {
         const [func, recalc] = cache(is[i], this)
 
-        this[i] = func
+        Object.defineProperty(this, i, {
+            get () {
+                return func()
+            },
+            set () {
+
+            }
+        })
 
         resetCache.push(recalc)
     }

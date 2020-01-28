@@ -12,20 +12,20 @@
                     persistent-hint
                     single-line
                     item-text="Name"
-                    :hint="hint(table)"
+                    :hint="table && table.Hint"
           />
         </div>
       </v-col>
       <v-col cols="8" style="text-align:center;" />
       <v-col cols="8" offset="2" style="text-align:center;">
         <Table v-if="table" :table="table" style="margin:0 0 20px 0 ;" />
-        <v-btn v-if="table && !table.HasOneNotNull()" style="margin:0 40px 0 0;" @click="addNotNull(table)">
-          Add Not Null
+        <v-btn v-if="table && !table.HasOneNotNull" style="margin:0 40px 0 0;" @click="addNotNull(table)">
+          Fix Not Null
         </v-btn>
 
-        <!-- <v-btn v-if="table && !table.HasPrimaryKey()" @click="addPrimaryKey(table)">
-          Add Primary Key
-        </v-btn> -->
+        <v-btn v-if="table && !table.HasPrimaryKey" @click="addPrimaryKey(table)">
+          Fix Primary Key
+        </v-btn>
       </v-col>
     </v-row>
 
@@ -35,18 +35,30 @@
     >
       <v-card v-if="table">
         <v-card-title class="headline">
-          Add Not Null
+          {{ title }}
         </v-card-title>
 
         <v-card-text :key="table.vueKey">
-          <h3>Columns</h3>
-          <template v-for="(column,index) in table.Columns">
-            <v-checkbox v-if="!column.HasNotNull() && !column.HasPrimaryKey()"
-                        :key="index"
-                        v-model="columnsNotNull"
-                        :label="`${column.Name} - ${column.Type}`"
-                        :value="{index:index, column:column}"
-            />
+          <!-- Not NULL check -->
+          <template v-if="action === 'notnull'">
+            <template v-if="!badConstruction">
+              <h3>Columns</h3>
+              <template v-for="(column,index) in table.Columns">
+                <v-checkbox v-if="!column.HasNotNull && !column.HasPrimaryKey && column.WithoutNULL"
+                            :key="index"
+                            v-model="columnsNotNull"
+                            :label="`${column.Name} - ${column.Type}`"
+                            :value="{index:index, column:column}"
+                />
+              </template>
+            </template>
+            <template v-else>
+              <p>
+                Tabelul  {{ table.Name }} are intrari NULL in toate coloanele ,
+                astfel neputand sa se adauge o constrangere not null asupra niciunei coloane,
+                stergeti toate intrarile NULL ale unei coloane ca sa puteti adauga o constrangere not null
+              </p>
+            </template>
           </template>
         </v-card-text>
 
@@ -97,14 +109,33 @@ export default {
       dialog: false,
       columnsNotNull: [],
       continue: false,
-      wait: false
+      wait: false,
+      action: ''
     }
   },
 
   computed: {
-    // tablesName () {
+    badConstruction () {
+      let count = 0
 
-    // }
+      if (this.table !== null) {
+        this.table.Columns.map(column => {
+          if (!column.HasPrimaryKey && column.WithoutNULL) {
+            count++
+          }
+        })
+      }
+
+      return count < 1
+    },
+    title () {
+      switch (this.action) {
+        case 'notnull':
+          return 'Add NOT NULL'
+        default:
+          return ''
+      }
+    }
   },
 
   created () {
@@ -118,16 +149,10 @@ export default {
       // var self = this;
 
     },
-    hint (table) {
-      var hint = ''
-      if (table && !table.IsSafe()) {
-        var hasPrimaryKey = table.HasPrimaryKey()
-        var hasOneNotNull = table.HasOneNotNull()
-
-        hint = `Tabelul ${table.Name} nu are ${!hasPrimaryKey && !hasOneNotNull ? ' cheie primara si cel putin o coloana not null' : (hasPrimaryKey ? ' cel putin o coloana not null' : ' cheie primara')}`
-      }
-      return hint
+    print () {
+      console.log(arguments)
     },
+
     cancelAction () {
       this.dialog = false
       this.continue = false
@@ -139,20 +164,23 @@ export default {
       this.wait = false
     },
     async addPrimaryKey (table) {
+      this.action = 'primarykey'
       this.wait = true
       this.dialog = true
     },
     async addNotNull (table) {
+      this.action = 'notnull'
       this.wait = true
       this.dialog = true
       this.columnsNotNull = []
+
       await this.$sync(() => !this.wait)
 
       if (!this.continue) return
 
       var items = await Promise.all(this.columnsNotNull.map(async (item) => {
         var rez = item
-        if (!item.column.HasNotNull()) {
+        if (!item.column.HasNotNull) {
           const response = await this.$backend.AddNotNull(table.Name, item.column)
           if (response.type === 'success') {
             rez.modified = true

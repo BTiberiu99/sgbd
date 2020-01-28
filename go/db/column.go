@@ -7,6 +7,7 @@ import (
 	"sgbd4/go/translate"
 	"sgbd4/go/utils"
 	"strings"
+	"sync"
 )
 
 type Column struct {
@@ -15,6 +16,7 @@ type Column struct {
 	Type        string
 	Position    int
 	sync        func(func())
+	WithoutNULL bool
 }
 
 func (c *Column) existOrCreateSync() {
@@ -24,21 +26,56 @@ func (c *Column) existOrCreateSync() {
 }
 
 //LoadConstrains ... Load all informations about constrains for a column from database
-func (c *Column) LoadConstrains(table string) {
-	query, _ := translate.QT("constrains", table, c.Name)
-	c.loadQuery(query)
+func (c *Column) Load(table string) {
+
+	group := &sync.WaitGroup{}
+
+	group.Add(1)
+	group.Add(1)
+	group.Add(1)
+
+	go c.loadConstrains(table, group)
+	go c.loadCheckConstrains(table, group)
+	go c.checkWithoutNull(table, group)
+
+	group.Wait()
+
 }
 
-func (c *Column) LoadCheckConstrains(table string) {
+//LoadConstrains ... Load all informations about constrains for a column from database
+func (c *Column) loadConstrains(table string, group *sync.WaitGroup) {
+	query, _ := translate.QT("constraints", table, c.Name)
+	c.loadQuery(query)
+
+	group.Done()
+}
+
+func (c *Column) loadCheckConstrains(table string, group *sync.WaitGroup) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered in f", r)
 		}
 	}()
 
-	query, _ := translate.QT("check_constrains", table, c.Name)
+	query, _ := translate.QT("check_constraints", table, c.Name)
 
 	c.loadQuery(query)
+
+	group.Done()
+}
+
+func (c *Column) checkWithoutNull(table string, group *sync.WaitGroup) {
+	var count int
+	query, _ := translate.QT("count_not_null", table, c.Name)
+
+	row := db.Conx().QueryRowContext(context.Background(), query)
+	err := row.Scan(&count)
+	if err != nil {
+		log.Fatal(err)
+	}
+	c.WithoutNULL = count == 0
+
+	group.Done()
 }
 
 func (c *Column) loadQuery(query string) {

@@ -127,8 +127,7 @@ func AddNotNull(table, column string) response.Message {
 	}
 
 	col.Constraints = []db.Constraint{}
-	col.LoadConstrains(table)
-	col.LoadCheckConstrains(table)
+	col.Load(table)
 
 	return response.Message{
 		Type:    legend.TypeSucces,

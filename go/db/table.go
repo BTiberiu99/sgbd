@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sgbd4/go/translate"
 	"sort"
@@ -11,7 +12,7 @@ import (
 
 type Table struct {
 	Name    string
-	Columns []Column
+	Columns []*Column
 }
 
 //Load ... Load all informations about an table from database
@@ -47,15 +48,17 @@ func (t *Table) LoadTable() {
 		group.Add(1)
 
 		go func(c *Column) {
-			c.LoadConstrains(t.Name)
-			c.LoadCheckConstrains(t.Name)
+			c.Load(t.Name)
 			group.Done()
-		}(&t.Columns[i])
+
+		}(t.Columns[i])
 
 		i++
 	}
 
 	group.Wait()
+
+	fmt.Println(t.Columns)
 
 	//Sort columns
 	sort.Slice(t.Columns, func(i, j int) bool {
@@ -78,7 +81,7 @@ func (t *Table) LoadTable() {
 
 func (t *Table) AddColumn(name, sqlType string, position int) {
 
-	c := Column{
+	c := &Column{
 		Name:        name,
 		Position:    position,
 		Type:        strings.ToUpper(sqlType),

@@ -2,7 +2,7 @@
   <div>
     <h3 class="Table__name">
       Table : {{ table.Name }}
-      <v-icon v-if="!table.IsSafe()" :key="table.keyValue" class="danger">
+      <v-icon v-if="!table.IsSafe" :key="table.keyValue" class="danger">
         mdi-close-octagon
       </v-icon>
     </h3>

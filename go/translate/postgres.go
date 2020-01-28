@@ -4,6 +4,7 @@ import "fmt"
 
 var (
 	postgres = map[string]func(...string) string{
+
 		"not_null": func(in ...string) string {
 			if len(in) < 2 {
 				panic("Trebuie sa introduci numele tabelului si al coloanei")
@@ -25,7 +26,7 @@ var (
 								WHERE table_schema = 'public' AND table_name  = '%s';`, in[0])
 		},
 
-		"constrains": func(in ...string) string {
+		"constraints": func(in ...string) string {
 			if len(in) < 2 {
 				panic("Trebuie sa introduci numele tabelului si numele coloanei")
 			}
@@ -34,11 +35,18 @@ var (
 							FROM information_schema.table_constraints
 							WHERE constraint_name IN (SELECT constraint_name from information_schema.constraint_column_usage 
 													WHERE table_schema = 'public' AND table_name = '%s' and column_name = '%s')
+							AND constraint_type <> 'CHECK'
 							AND table_schema = 'public'
 							AND table_name   = '%s';`, in[0], in[1], in[0])
 		},
+		"count_not_null": func(in ...string) string {
+			if len(in) < 2 {
+				panic("Trebuie sa introduci numele tabelului si numele coloanei")
+			}
+			return fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s IS NULL", in[0], in[1])
+		},
 
-		"check_constrains": func(in ...string) string {
+		"check_constraints": func(in ...string) string {
 			if len(in) < 2 {
 				panic("Trebuie sa introduci numele tabelului si numele coloanei")
 			}

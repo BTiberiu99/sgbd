@@ -49,7 +49,14 @@ export default function (column) {
     for (i in has) {
         const [func, recalc] = cache(has[i], this)
 
-        this[i] = func
+        Object.defineProperty(this, i, {
+            get () {
+                return func()
+            },
+            set () {
+
+            }
+        })
 
         resetCache.push(recalc)
     }
@@ -68,31 +75,31 @@ export default function (column) {
 const has = {
     HasNotNull: function () {
         return iterateConstraints((constraint) => {
-            return constraint.IsNotNull() & !constraint.IsPrimaryKey()
+            return constraint.IsNotNull
         }, this)
     },
 
     HasPrimaryKey: function () {
         return iterateConstraints((constraint) => {
-            return constraint.IsPrimaryKey()
+            return constraint.IsPrimaryKey
         }, this)
     },
 
     HasForeignKey: function () {
         return iterateConstraints((constraint) => {
-            return constraint.IsForeignKey()
+            return constraint.IsForeignKey
         }, this)
     },
 
     HasUnique: function () {
         return iterateConstraints((constraint) => {
-            return constraint.IsUnique()
+            return constraint.IsUnique
         }, this)
     },
 
     HasCheck: function () {
         return iterateConstraints((constraint) => {
-            return constraint.IsCheck()
+            return constraint.IsCheck
         }, this)
     },
 
