@@ -3,7 +3,6 @@ var types = {
 
     postgres: {
         NUMERIC: genreateObject([
-
             'SMALLINT',
             'INTEGER',
             'NUMBER',
@@ -15,7 +14,9 @@ var types = {
             'SMALLSERIAL',
             'SERIAL',
             'BIGSERIAL',
-            'MONEY'
+            'MONEY',
+            'INT',
+            'INT4'
         ]),
         STRING: genreateObject([
             'VARYING',

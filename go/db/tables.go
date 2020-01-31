@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"log"
+	"sgbd4/go/legend"
 	"sgbd4/go/translate"
 	"sync"
 )
@@ -11,7 +12,7 @@ type Tables []*Table
 
 //Load all informations about tables from database
 func CreateTables() Tables {
-	query, _ := translate.QT("tables")
+	query, _ := translate.QT(legend.QueryTABLES)
 
 	rows, err := db.Conx().QueryContext(context.Background(), query)
 
@@ -70,4 +71,21 @@ func CreateTables() Tables {
 	}
 
 	return Tables(t)
+}
+
+func (t Tables) Iterate(call func(*Table, *Column, *Constraint) error) error {
+
+	var err error
+	for _, table := range t {
+		for _, column := range table.Columns {
+			for _, constraint := range column.Constraints {
+				err = call(table, column, constraint)
+
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return err
 }

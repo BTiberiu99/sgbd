@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sgbd4/go/legend"
 	"sgbd4/go/translate"
 	"sgbd4/go/utils"
 	"strings"
@@ -12,7 +13,7 @@ import (
 
 type Column struct {
 	Name        string
-	Constraints []Constraint
+	Constraints []*Constraint
 	Type        string
 	Position    int
 	sync        func(func())
@@ -44,7 +45,9 @@ func (c *Column) Load(table string) {
 
 //LoadConstrains ... Load all informations about constrains for a column from database
 func (c *Column) loadConstrains(table string, group *sync.WaitGroup) {
-	query, _ := translate.QT("constraints", table, c.Name)
+
+	query, _ := translate.QT(legend.QueryCONSTRAINTS, table, c.Name)
+
 	c.loadQuery(query)
 
 	group.Done()
@@ -57,7 +60,7 @@ func (c *Column) loadCheckConstrains(table string, group *sync.WaitGroup) {
 		}
 	}()
 
-	query, _ := translate.QT("check_constraints", table, c.Name)
+	query, _ := translate.QT(legend.QueryCHECKCONSTRAINTS, table, c.Name)
 
 	c.loadQuery(query)
 
@@ -66,7 +69,7 @@ func (c *Column) loadCheckConstrains(table string, group *sync.WaitGroup) {
 
 func (c *Column) checkWithoutNull(table string, group *sync.WaitGroup) {
 	var count int
-	query, _ := translate.QT("count_not_null", table, c.Name)
+	query, _ := translate.QT(legend.QueryCOUNTNOTNULL, table, c.Name)
 
 	row := db.Conx().QueryRowContext(context.Background(), query)
 	err := row.Scan(&count)
@@ -88,13 +91,17 @@ func (c *Column) loadQuery(query string) {
 
 	defer rows.Close()
 
+	cols, _ := rows.Columns()
+
 	for rows.Next() {
 
-		var (
-			name          string
-			constrainType string
-		)
-		if err := rows.Scan(&name, &constrainType); err != nil {
+		values := make([]string, len(cols))
+		pointers := make([]interface{}, len(cols))
+
+		for i := range values {
+			pointers[i] = &values[i]
+		}
+		if err := rows.Scan(pointers...); err != nil {
 			// Check for a scan error.
 			// Query rows will be closed with defer.
 			log.Fatal(err)
@@ -103,7 +110,7 @@ func (c *Column) loadQuery(query string) {
 
 		}
 
-		c.AddConstrain(name, constrainType)
+		c.AddConstrain(values...)
 
 	}
 
@@ -123,17 +130,42 @@ func (c *Column) loadQuery(query string) {
 
 func (c *Column) AddNotNull(table string) error {
 
-	query, _ := translate.QT("not_null", table, c.Name)
+	query, _ := translate.QT(legend.QuerySETNOTNULL, table, c.Name)
 
 	_, err := db.Conx().ExecContext(context.Background(), query)
 
 	return err
 }
 
-func (c *Column) AddConstrain(name, constrainType string) {
+func (c *Column) AddConstrain(items ...string) {
 	c.existOrCreateSync()
 	c.sync(func() {
-		c.Constraints = append(c.Constraints, Constraint{Name: name, Type: strings.ToUpper(constrainType)})
+		constr := &Constraint{}
+		if len(items) > 0 {
+			constr.Name = items[0]
+		}
+		if len(items) > 1 {
+			constr.Type = strings.ToUpper(items[1])
+		}
+
+		if constr.IsForeignKey() {
+			if len(items) > 2 {
+				constr.ForeingTableName = items[2]
+			}
+
+			if len(items) > 3 {
+				constr.ForeingColumnName = items[3]
+			}
+
+			if len(items) > 4 {
+				constr.UpdateRule = items[4]
+			}
+			if len(items) > 5 {
+				constr.DeleteRule = items[5]
+			}
+		}
+
+		c.Constraints = append(c.Constraints, constr)
 	})
 
 }
@@ -170,7 +202,7 @@ func (c *Column) HasCheck() bool {
 
 func (c *Column) iterateConstrains(s func(c *Constraint) bool) bool {
 	for i := range c.Constraints {
-		if s(&c.Constraints[i]) {
+		if s(c.Constraints[i]) {
 			return true
 		}
 	}

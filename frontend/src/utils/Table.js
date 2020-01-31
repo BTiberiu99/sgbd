@@ -23,7 +23,7 @@ export default function (table) {
                 return col
             })
 
-            this[i] = new Proxy(columns, {
+            var proxy = new Proxy(columns, {
                 get: function (target, name) {
                     return target[name]
                 },
@@ -36,6 +36,33 @@ export default function (table) {
                     target[name] = val
 
                     return true
+                }
+            })
+
+            Object.defineProperty(this, i, {
+                get () {
+                    return proxy
+                },
+                set (val) {
+                    if (val instanceof Proxy) {
+                        proxy = val
+                    } else {
+                        proxy = new Proxy(val, {
+                            get: function (target, name) {
+                                return target[name]
+                            },
+                            set: function (target, name, val) {
+                                if (val instanceof Column) {
+                                    val.$obs.unsubscribe(reset)
+                                    val.$obs.subscribe(reset)
+                                }
+
+                                target[name] = val
+
+                                return true
+                            }
+                        })
+                    }
                 }
             })
         } else {

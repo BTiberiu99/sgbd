@@ -20,7 +20,7 @@ func Run(sql string) response.Message {
 	if db.DB().Conx() == nil {
 		return response.Message{
 			Type:    legend.TypeError,
-			Message: translate.T("no_connection"),
+			Message: translate.T(legend.MessageNoConnection),
 		}
 	}
 
@@ -52,7 +52,7 @@ func Run(sql string) response.Message {
 		if e == nil {
 			return response.Message{
 				Type:    legend.TypeSucces,
-				Message: translate.T("rows_affected", nr),
+				Message: translate.T(legend.MessageRowsAffected, nr),
 				Data:    result,
 			}
 		}

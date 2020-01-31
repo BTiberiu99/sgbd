@@ -71,8 +71,8 @@ func (c *Connection) createConnection() error {
 
 func (c *Connection) Tables() *Tables {
 
-	if c.database == nil {
-		c.database = new(Tables)
+	if c.database != nil {
+		return c.database
 	}
 
 	database := CreateTables()
@@ -80,4 +80,9 @@ func (c *Connection) Tables() *Tables {
 	c.database = &database
 
 	return c.database
+}
+
+func (c *Connection) ResetTables() *Connection {
+	c.database = nil
+	return c
 }

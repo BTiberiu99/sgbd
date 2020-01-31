@@ -6,7 +6,7 @@
           Tables
           <v-select v-model="table"
                     :items="tables"
-                    label="Tables"
+                    label="Table"
                     dense
                     return-object
                     persistent-hint
@@ -23,7 +23,7 @@
           Fix Not Null
         </v-btn>
 
-        <v-btn v-if="table && !table.HasPrimaryKey" @click="addPrimaryKey(table)">
+        <v-btn v-if="table && (!table.HasPrimaryKey || !table.HasCorrectPrimaryKey)" @click="addPrimaryKey(table)">
           Fix Primary Key
         </v-btn>
       </v-col>
@@ -60,13 +60,31 @@
               </p>
             </template>
           </template>
+
+          <template v-if="action === 'primarykey'">
+            <template v-if="!table.HasPrimaryKey">
+              Nu exista nicio cheie primara in tabel , introduceti numele mai jos ca sa creati una surogat
+            </template>
+            <template v-else>
+              Cheia curenta primara nu este formata corect, introduceti numele mai jos ca sa creati una surogat
+            </template>
+            <v-text-field
+              v-model="primaryKeyName"
+              label="Nume"
+              placeholder=""
+              @input="checkPrimaryKeyName"
+            />
+            <div v-if="isTakenName" style="color: #ff3c00ce;">
+              Exista deja o coloana in tabel cu acest nume!
+            </div>
+          </template>
         </v-card-text>
 
         <v-card-actions>
           <v-spacer />
 
           <v-btn
-            color="green darken-1"
+            color="red darken-1"
             text
             @click="cancelAction"
           >
@@ -74,7 +92,7 @@
           </v-btn>
 
           <v-btn
-            color="red darken-1"
+            color="green darken-1"
             text
             @click="continueAction"
           >
@@ -89,6 +107,7 @@
 <script>
 import { WAILSINIT } from '@/store/events'
 import Column from '@/utils/Column'
+
 import { getInstanceQueueMessage } from '@/utils/Queue.js'
 export default {
   name: 'CheckIntegriy',
@@ -110,7 +129,13 @@ export default {
       columnsNotNull: [],
       continue: false,
       wait: false,
-      action: ''
+      action: '',
+      primaryKeyName: '',
+      isTakenName: false,
+      validate: {
+        notnull: () => true,
+        primarykey: () => !this.isTakenName
+      }
     }
   },
 
@@ -159,6 +184,7 @@ export default {
       this.wait = false
     },
     continueAction () {
+      if (!this.validate[this.action]()) return
       this.dialog = false
       this.continue = true
       this.wait = false
@@ -167,6 +193,21 @@ export default {
       this.action = 'primarykey'
       this.wait = true
       this.dialog = true
+      var rez
+      await this.$sync(() => !this.wait)
+      if (!table.HasPrimaryKey) {
+        rez = await this.$backend.AddPrimaryKey(table.Name, this.primaryKeyName)
+      } else {
+        rez = await this.$backend.FixPrimaryKey(table.Name, this.primaryKeyName)
+      }
+
+      if (rez) {
+        getInstanceQueueMessage().addMessage(rez)
+
+        table.Columns = rez.data.Columns.map(col => {
+          return new Column(col)
+        })
+      }
     },
     async addNotNull (table) {
       this.action = 'notnull'
@@ -198,6 +239,17 @@ export default {
           table.Columns[item.index] = new Column(item.column)
         }
       })
+    },
+
+    checkPrimaryKeyName () {
+      let i
+      this.isTakenName = false
+      for (i in this.table.Columns) {
+        if (this.table.Columns[i].Name === this.primaryKeyName) {
+          this.isTakenName = true
+          break
+        }
+      }
     }
   }
 }

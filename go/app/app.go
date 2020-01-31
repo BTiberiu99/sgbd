@@ -32,7 +32,8 @@ func LoadApp() {
 		app.Bind(expose.RemoveConnection)
 		app.Bind(expose.GetConnections)
 		app.Bind(expose.AddNotNull)
-
+		app.Bind(expose.FixPrimaryKey)
+		app.Bind(expose.AddPrimaryKey)
 		//Run SQL
 		app.Bind(expose.Run)
 		app.Bind(expose.GetTables)

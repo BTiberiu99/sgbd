@@ -5,8 +5,12 @@ import "strings"
 import "sgbd4/go/legend"
 
 type Constraint struct {
-	Name string
-	Type string
+	Name              string
+	Type              string
+	ForeingTableName  string `json:"foreing_table_name,omitempty"`
+	ForeingColumnName string `json:"foreing_column_name,omitempty"`
+	UpdateRule        string `json:"update_rule,omitempty"`
+	DeleteRule        string `json:"delete_rule,omitempty"`
 }
 
 func (c *Constraint) IsPrimaryKey() bool {

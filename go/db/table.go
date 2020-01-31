@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sgbd4/go/legend"
 	"sgbd4/go/translate"
 	"sort"
 	"strings"
@@ -17,7 +18,7 @@ type Table struct {
 
 //Load ... Load all informations about an table from database
 func (t *Table) LoadTable() {
-	query, _ := translate.QT("columns", t.Name)
+	query, _ := translate.QT(legend.QueryCOLUMNS, t.Name)
 
 	rows, err := db.Conx().QueryContext(context.Background(), query)
 
@@ -85,7 +86,7 @@ func (t *Table) AddColumn(name, sqlType string, position int) {
 		Name:        name,
 		Position:    position,
 		Type:        strings.ToUpper(sqlType),
-		Constraints: []Constraint{},
+		Constraints: []*Constraint{},
 	}
 
 	t.Columns = append(t.Columns, c)

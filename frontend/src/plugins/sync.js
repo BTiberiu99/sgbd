@@ -7,7 +7,6 @@ function checkPromises () {
     let ok = false
     let i
     for (i in promises) {
-
         if (!promises[i].call()) {
             // Remove promise
             promises[i].remove()
@@ -16,7 +15,6 @@ function checkPromises () {
         // Set to keep interval
         if (!ok) ok = true
     }
-
 
     if (!ok) {
         const copy = interval
@@ -38,7 +36,6 @@ function setPromise (promise) {
     }
 }
 
-
 // Sync async functions with other async functions
 Vue.prototype.$sync = function sync (call) {
     if (typeof call !== 'function') return
@@ -59,7 +56,5 @@ Vue.prototype.$sync = function sync (call) {
             }
             return continueWatching
         })
-    }).catch(e => { e })
+    }).catch(e => { })
 }
-
-

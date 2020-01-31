@@ -20,14 +20,14 @@ func CreateConnection(str string) response.Message {
 	if err != nil {
 		return response.Message{
 			Type:    legend.TypeError,
-			Message: translate.T("fail_connection", err.Error()),
+			Message: translate.T(legend.MessageConnectionFail, err.Error()),
 		}
 	}
 
 	if _, exist := store.NewStore().Get(conn.SafeString()); exist {
 		return response.Message{
 			Type:    legend.TypeWarning,
-			Message: translate.T("exist_connection", conn.Database),
+			Message: translate.T(legend.MessageConnectionExist, conn.Database),
 		}
 	}
 
@@ -37,7 +37,7 @@ func CreateConnection(str string) response.Message {
 
 	return response.Message{
 		Type:    legend.TypeSucces,
-		Message: translate.T("succes_connection"),
+		Message: translate.T(legend.MessageConnectionSuccess),
 		Data:    db.NewSafeConnectionFromConnection(conn),
 	}
 
@@ -53,7 +53,7 @@ func RemoveConnection(str string) response.Message {
 
 	return response.Message{
 		Type:    legend.TypeSucces,
-		Message: translate.T("succes_remove_connection", safeConn.Name),
+		Message: translate.T(legend.MessageConnectionSuccessRemove, safeConn.Name),
 		Data:    GetConnections(),
 	}
 }
@@ -83,7 +83,7 @@ func SwitchConnection(str string) response.Message {
 	if !exist {
 		return response.Message{
 			Type:    legend.TypeError,
-			Message: translate.T("not_exist_connection", safeConn.Name),
+			Message: translate.T(legend.MessageConnectionNotExist, safeConn.Name),
 		}
 	}
 
@@ -94,13 +94,13 @@ func SwitchConnection(str string) response.Message {
 	if err != nil {
 		return response.Message{
 			Type:    legend.TypeError,
-			Message: translate.T("fail_connection", err.Error()),
+			Message: translate.T(legend.MessageConnectionFail, err.Error()),
 		}
 	}
 
 	return response.Message{
 		Type:    legend.TypeSucces,
-		Message: translate.T("succes_connection"),
+		Message: translate.T(legend.MessageConnectionSuccess),
 		Data:    safeConn,
 	}
 }
@@ -113,7 +113,7 @@ func AddNotNull(table, column string) response.Message {
 	if err != nil {
 		return response.Message{
 			Type:    legend.TypeError,
-			Message: translate.T("fail_add_not_null", col.Name),
+			Message: translate.T(legend.MessageFailAddNotNULL, col.Name),
 		}
 	}
 
@@ -122,16 +122,16 @@ func AddNotNull(table, column string) response.Message {
 	if err != nil {
 		return response.Message{
 			Type:    legend.TypeError,
-			Message: translate.T("fail_add_not_null", col.Name),
+			Message: translate.T(legend.MessageFailAddNotNULL, col.Name),
 		}
 	}
 
-	col.Constraints = []db.Constraint{}
+	col.Constraints = []*db.Constraint{}
 	col.Load(table)
 
 	return response.Message{
 		Type:    legend.TypeSucces,
-		Message: translate.T("succes_add_not_null", column),
+		Message: translate.T(legend.MessageSuccessAddNotNULL, column),
 		Data:    col,
 	}
 }
