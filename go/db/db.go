@@ -2,8 +2,6 @@ package db
 
 import "sgbd4/go/utils"
 
-import "fmt"
-
 var (
 	db            *Connection
 	ActiveIndex   = ""
@@ -16,7 +14,7 @@ func UpdateConnection(conn *Connection) error {
 		db = conn
 		ActiveIndex = db.SafeString()
 	})
-	fmt.Println(db, ActiveIndex)
+	// fmt.Println(db, ActiveIndex)
 	if conn.con != nil {
 		return nil
 	}

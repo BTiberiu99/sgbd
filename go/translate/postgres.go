@@ -85,12 +85,23 @@ var (
 			}
 			return fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s;", in[0], in[1])
 		},
-
+		legend.QueryADDCOLUMN: func(in ...string) string {
+			if len(in) < 2 {
+				panic("Trebuie sa introduceti numele tabelului, numele coloanei si tipul coloanei")
+			}
+			return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s;", in[0], in[1], in[2])
+		},
 		legend.QueryREMOVECONSTRAINT: func(in ...string) string {
 			if len(in) < 2 {
 				panic("Trebuie sa introduceti numele tabelului si numele constrangeri")
 			}
 			return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s;", in[0], in[1])
+		},
+		legend.QueryADDCONSTRAINT: func(in ...string) string {
+			if len(in) < 2 {
+				panic("Trebuie sa introduceti numele tabelului, numele constrangeri si definitia constrangeri")
+			}
+			return fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s %s;", in[0], in[1], in[2])
 		},
 		legend.QueryADDFOREIGNKEY: func(in ...string) string {
 			if len(in) < 5 {
@@ -118,11 +129,11 @@ var (
 			return simple
 		},
 		legend.QueryCREATEVIEW: func(in ...string) string {
-			if len(in) < 5 {
-				panic("Trebuie sa introduceti numele view-ului,numele tabelului din care se iau datele, numele coloanei, numele tabelului cu care se face join si numele coloanei care se inlocuieste")
+			if len(in) < 6 {
+				panic("Trebuie sa introduceti numele view-ului,numele tabelului din care se iau datele, numele coloanei, numele coloanei din join, numele tabelului cu care se face join si numele coloanei care se inlocuieste, si alias pentru valoare")
 			}
 
-			return fmt.Sprintf(`CREATE TEMPORARY VIEW temp%s AS (SELECT t.%s FROM %s t JOIN %s t2 ON t2.%s = t.%s);`, in[0], in[2], in[1], in[4], in[5], in[3])
+			return fmt.Sprintf(`CREATE TEMPORARY VIEW temp%s AS (SELECT t.%s AS %s FROM %s t JOIN %s t2 ON t2.%s = t.%s);`, in[0], in[2], in[6], in[1], in[4], in[5], in[3])
 
 		},
 	}

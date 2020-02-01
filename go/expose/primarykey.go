@@ -8,6 +8,7 @@ import (
 	"sgbd4/go/legend"
 	"sgbd4/go/response"
 	"sgbd4/go/translate"
+	"strings"
 )
 
 func AddPrimaryKey(table, primaryKeyName string) response.Message {
@@ -137,7 +138,7 @@ func FixPrimaryKey(tableName, primaryKeyName string) response.Message {
 	}
 
 	//DROP PRIMARY KEYS
-	if !isMultiplePrimaryKeys {
+	if isMultiplePrimaryKeys {
 
 		//Remake connections
 		err = tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
@@ -145,7 +146,7 @@ func FixPrimaryKey(tableName, primaryKeyName string) response.Message {
 				return nil
 			}
 
-			query, err := translate.QT(legend.QueryREMOVECONSTRAINT, table.Name, constraint.Name)
+			query, err := translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constraint.Name, column.Name, constraint.ForeingTableName, constraint.ForeingColumnName)
 
 			if err != nil {
 				return errors.New("Query nu a putut fii definit")
@@ -155,37 +156,23 @@ func FixPrimaryKey(tableName, primaryKeyName string) response.Message {
 
 		})
 
-		for _, primaryKey := range primaryKeys {
-			query, err := translate.QT(legend.QueryREMOVECOLUMN, tableName, primaryKey.Name)
+		// for _, primaryKey := range primaryKeys {
+		// 	query, err := translate.QT(legend.QueryREMOVECOLUMN, tableName, primaryKey.Name)
 
-			if err != nil {
-				return errMessage
-			}
+		// 	if err != nil {
+		// 		return errMessage
+		// 	}
 
-			err = executeQuery(tx, query)
+		// 	err = executeQuery(tx, query)
 
-			if err != nil {
+		// 	if err != nil {
 
-				return errMessage
-			}
-		}
+		// 		return errMessage
+		// 	}
+		// }
 	} else {
 		//Remake foreing constraints
-		err = tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
-			if !constraint.IsForeignKey() || constraint.ForeingTableName != tableName || !isInPrimaryKeys(constraint.ForeingColumnName) {
-				return nil
-			}
-			query, err := translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constraint.Name,
-				column.Name, constraint.ForeingTableName, constraint.ForeingColumnName,
-				constraint.UpdateRule, constraint.DeleteRule)
-
-			if err != nil {
-				return errors.New("Query nu a putut fii definit")
-			}
-
-			return executeQuery(tx, query)
-
-		})
+		err = remakeColumns(tx, &tables, primaryKeys, primaryKeyName, tableName, isInPrimaryKeys)
 	}
 
 	if err != nil {
@@ -237,4 +224,118 @@ func takePrimaryKeys(tables db.Tables, tableName string) (func(string) bool, []*
 		return false
 	}, primaryKeys, nil
 
+}
+
+func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, primaryKeyName, tableName string, isInPrimaryKeys func(string) bool) error {
+	return tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
+		if !constraint.IsForeignKey() || constraint.ForeingTableName != tableName || !isInPrimaryKeys(constraint.ForeingColumnName) {
+			return nil
+		}
+
+		for _, constr := range column.Constraints {
+			query, err := translate.QT(legend.QueryREMOVECONSTRAINT, table.Name, constr.Name)
+			if err != nil {
+				return errors.New("Query nu a putut fii definit")
+			}
+
+			err = executeQuery(tx, query)
+			if err != nil {
+				return err
+			}
+		}
+
+		//Create view
+		const alias = "value"
+		query, err := translate.QT(legend.QueryCREATEVIEW, strings.Join([]string{column.Name, table.Name, constraint.Name}, "_"), tableName, primaryKeyName,
+			primaryKeys[0].Name, column.Name, table.Name, alias)
+
+		if err != nil {
+			return errors.New("Query nu a putut fii definit")
+		}
+
+		err = executeQuery(tx, query)
+		if err != nil {
+			return err
+		}
+
+		//Drop column
+
+		query, err = translate.QT(legend.QueryREMOVECOLUMN, table.Name, column.Name)
+
+		if err != nil {
+			return errors.New("Query nu a putut fii definit")
+		}
+
+		err = executeQuery(tx, query)
+		if err != nil {
+			return err
+		}
+
+		aux := db.Column{
+			Name: primaryKeyName,
+		}
+
+		aux.Load(tableName)
+
+		//Set column back
+		query, err = translate.QT(legend.QueryADDCOLUMN, table.Name, column.Name, aux.Type)
+
+		if err != nil {
+			return errors.New("Query nu a putut fii definit")
+		}
+
+		err = executeQuery(tx, query)
+		if err != nil {
+			return err
+		}
+
+		//Update back values from
+		query, err = translate.QT(legend.QueryREMAKECOLUMNS, table.Name, column.Name, alias, strings.Join([]string{column.Name, table.Name, constraint.Name}, "_"))
+
+		if err != nil {
+			return errors.New("Query nu a putut fii definit")
+		}
+
+		err = executeQuery(tx, query)
+		if err != nil {
+			return err
+		}
+
+		//Add back constraints
+
+		for _, constr := range column.Constraints {
+			var (
+				query string
+				err   error
+			)
+			if !constr.IsForeignKey() {
+				query, err = translate.QT(legend.QueryADDCONSTRAINT, table.Name, constr.Name)
+			} else {
+				name := primaryKeyName
+				if !isInPrimaryKeys(constr.ForeingColumnName) {
+					name = constr.ForeingColumnName
+				}
+				query, err = translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constr.Name, column.Name, constr.ForeingTableName, name)
+			}
+
+			if err != nil {
+				return errors.New("Query nu a putut fii definit")
+			}
+
+			err = executeQuery(tx, query)
+			if err != nil {
+				return err
+			}
+		}
+		// query, err := translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constraint.Name,
+		// 	column.Name, constraint.ForeingTableName, constraint.ForeingColumnName,
+		// 	constraint.UpdateRule, constraint.DeleteRule)
+
+		if err != nil {
+			return errors.New("Query nu a putut fii definit")
+		}
+
+		return executeQuery(tx, query)
+
+	})
 }
