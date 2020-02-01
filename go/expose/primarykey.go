@@ -4,11 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"sgbd4/go/db"
 	"sgbd4/go/legend"
 	"sgbd4/go/response"
 	"sgbd4/go/translate"
 	"strings"
+)
+
+var (
+	queryNotDefined        = errors.New("Interogarea nu a putut fii definita")
+	transactionNotPrepared = errors.New("Nu s-a putut pregatit tranzactia")
+	transactionNotExecuted = errors.New("Nu s-a putut executa tranzactia")
 )
 
 func AddPrimaryKey(table, primaryKeyName string) response.Message {
@@ -44,55 +51,38 @@ func AddPrimaryKey(table, primaryKeyName string) response.Message {
 	}
 }
 
-type tableForeingKeys struct {
-	TableName   string
-	ForeingKeys []*db.Constraint
+func panicOnError(err error) {
+	if err != nil {
+		panic(err.Error())
+	}
 }
 
-func executeQuery(tx *sql.Tx, query string) error {
-	stmt, err := tx.PrepareContext(context.Background(), query)
-	defer stmt.Close()
+func FixPrimaryKey(tableName, primaryKeyName string) (res response.Message) {
 
-	if err != nil {
-		tx.Rollback()
-		return errors.New("Nu s-a putut pregatit tranzactia")
-	}
+	defer func() {
+		if r := recover(); r != nil {
+			res = response.Message{
+				Type:    legend.TypeError,
+				Message: translate.T(legend.MessagePrimaryKeyFailFix, fmt.Sprint(r)),
+			}
+		}
+	}()
 
-	_, err = stmt.Exec()
-
-	if err != nil {
-		tx.Rollback()
-		return errors.New("Nu s-a putut executa tranzactia")
-	}
-
-	return nil
-}
-
-func FixPrimaryKey(tableName, primaryKeyName string) response.Message {
 	tables := *db.DB().Tables()
 
 	isInPrimaryKeys, primaryKeys, err := takePrimaryKeys(tables, tableName)
 
-	errMessage := response.Message{
-		Type:    legend.TypeError,
-		Message: translate.T(legend.MessagePrimaryKeyFailFix),
-	}
-
 	if len(primaryKeys) < 1 {
-		return errMessage
+		panic("Nu exista nicio cheie primara")
 	}
-
-	isMultiplePrimaryKeys := len(primaryKeys) > 1
-	//Check foreign key column is in primary keys name
 
 	tx, err := db.DB().Conx().BeginTx(context.Background(), nil)
 
-	if err != nil {
-		return errMessage
-	}
+	panicOnError(err)
 
 	//Drop constraints foreignkeys
-	err = tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
+
+	panicOnError(tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
 		if !constraint.IsForeignKey() || constraint.ForeingTableName != tableName || !isInPrimaryKeys(constraint.ForeingColumnName) {
 			return nil
 		}
@@ -100,96 +90,62 @@ func FixPrimaryKey(tableName, primaryKeyName string) response.Message {
 		query, err := translate.QT(legend.QueryREMOVECONSTRAINT, table.Name, constraint.Name)
 
 		if err != nil {
-			return errors.New("Query nu a putut fii definit")
+			return queryNotDefined
 		}
 
 		return executeQuery(tx, query)
 
-	})
+	}))
 
 	//Take first, because is same constraint
 	primaryKey := primaryKeys[0]
 
-	//Remove primary key constraints
-	query, err := translate.QT(legend.QueryREMOVECONSTRAINT, tableName, primaryKey.Name)
+	panicOnError(removeAndAddPrimaryKey(tx, tableName, primaryKeyName, primaryKey.Name))
 
-	if err != nil {
-		return errMessage
-	}
-
-	err = executeQuery(tx, query)
-
-	if err != nil {
-
-		return errMessage
-	}
-
-	//Add primary key constraint
-	query, err = translate.QT(legend.QueryADDPRIMARYKEY, tableName, primaryKeyName)
-
-	if err != nil {
-		return errMessage
-	}
-
-	err = executeQuery(tx, query)
-
-	if err != nil {
-		return errMessage
-	}
+	isMultiplePrimaryKeys := len(primaryKeys) > 1
 
 	//DROP PRIMARY KEYS
 	if isMultiplePrimaryKeys {
 
-		//Remake connections
-		err = tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
-			if !constraint.IsForeignKey() || constraint.ForeingTableName != tableName || !isInPrimaryKeys(constraint.ForeingColumnName) {
-				return nil
-			}
+		//Remake constraints
+		panicOnError(remakeConstraints(tx, &tables, tableName, isInPrimaryKeys))
 
-			query, err := translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constraint.Name, column.Name, constraint.ForeingTableName, constraint.ForeingColumnName)
-
-			if err != nil {
-				return errors.New("Query nu a putut fii definit")
-			}
-
-			return executeQuery(tx, query)
-
-		})
-
-		// for _, primaryKey := range primaryKeys {
-		// 	query, err := translate.QT(legend.QueryREMOVECOLUMN, tableName, primaryKey.Name)
-
-		// 	if err != nil {
-		// 		return errMessage
-		// 	}
-
-		// 	err = executeQuery(tx, query)
-
-		// 	if err != nil {
-
-		// 		return errMessage
-		// 	}
-		// }
 	} else {
-		//Remake foreing constraints
-		err = remakeColumns(tx, &tables, primaryKeys, primaryKeyName, tableName, isInPrimaryKeys)
-	}
 
-	if err != nil {
-		return errMessage
+		//Remake foreing constraints
+		panicOnError(remakeColumns(tx, &tables, primaryKeys, primaryKeyName, tableName, isInPrimaryKeys))
 	}
 
 	err = tx.Commit()
 
-	if err != nil {
-		return errMessage
-	}
+	panicOnError(err)
 
 	return response.Message{
 		Type:    legend.TypeSucces,
 		Message: translate.T(legend.MessagePrimaryKeySuccessFix),
 		Data:    db.DB().ResetTables().Tables(),
 	}
+}
+
+func executeQuery(tx *sql.Tx, query string) error {
+
+	stmt, err := tx.PrepareContext(context.Background(), query)
+
+	defer stmt.Close()
+
+	if err != nil {
+		tx.Rollback()
+		return transactionNotPrepared
+	}
+
+	_, err = stmt.Exec()
+
+	if err != nil {
+		tx.Rollback()
+		return transactionNotExecuted
+	}
+
+	return nil
 }
 
 func takePrimaryKeys(tables db.Tables, tableName string) (func(string) bool, []*db.Column, error) {
@@ -202,7 +158,7 @@ func takePrimaryKeys(tables db.Tables, tableName string) (func(string) bool, []*
 	}
 
 	if table == nil {
-		return nil, nil, errors.New("Nu exista tabelu")
+		panic("Nu exista tabelu")
 	}
 
 	//Take primaryKey/Keys
@@ -232,10 +188,11 @@ func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, prim
 			return nil
 		}
 
+		//Remove any constraint for this column
 		for _, constr := range column.Constraints {
 			query, err := translate.QT(legend.QueryREMOVECONSTRAINT, table.Name, constr.Name)
 			if err != nil {
-				return errors.New("Query nu a putut fii definit")
+				return queryNotDefined
 			}
 
 			err = executeQuery(tx, query)
@@ -244,32 +201,35 @@ func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, prim
 			}
 		}
 
-		//Create view
+		//Create view with values temporary from the new primary key column
 		const alias = "value"
 		query, err := translate.QT(legend.QueryCREATEVIEW, strings.Join([]string{column.Name, table.Name, constraint.Name}, "_"), tableName, primaryKeyName,
 			primaryKeys[0].Name, column.Name, table.Name, alias)
 
 		if err != nil {
-			return errors.New("Query nu a putut fii definit")
+			return queryNotDefined
 		}
 
 		err = executeQuery(tx, query)
+
 		if err != nil {
 			return err
 		}
 
-		//Drop column
+		//Drop this column
 
 		query, err = translate.QT(legend.QueryREMOVECOLUMN, table.Name, column.Name)
 
 		if err != nil {
-			return errors.New("Query nu a putut fii definit")
+			return queryNotDefined
 		}
 
 		err = executeQuery(tx, query)
 		if err != nil {
 			return err
 		}
+
+		//Load column with primary key to take type of new primary key
 
 		aux := db.Column{
 			Name: primaryKeyName,
@@ -277,23 +237,24 @@ func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, prim
 
 		aux.Load(tableName)
 
-		//Set column back
+		//Create column back
 		query, err = translate.QT(legend.QueryADDCOLUMN, table.Name, column.Name, aux.Type)
 
 		if err != nil {
-			return errors.New("Query nu a putut fii definit")
+			return queryNotDefined
 		}
 
 		err = executeQuery(tx, query)
+
 		if err != nil {
 			return err
 		}
 
-		//Update back values from
+		//Take values from view and add them to the new column
 		query, err = translate.QT(legend.QueryREMAKECOLUMNS, table.Name, column.Name, alias, strings.Join([]string{column.Name, table.Name, constraint.Name}, "_"))
 
 		if err != nil {
-			return errors.New("Query nu a putut fii definit")
+			return queryNotDefined
 		}
 
 		err = executeQuery(tx, query)
@@ -302,16 +263,18 @@ func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, prim
 		}
 
 		//Add back constraints
-
 		for _, constr := range column.Constraints {
 			var (
 				query string
 				err   error
 			)
 			if !constr.IsForeignKey() {
+				//Add normal constraints, NOT NULL ,CHECK etc
 				query, err = translate.QT(legend.QueryADDCONSTRAINT, table.Name, constr.Name)
 			} else {
+
 				name := primaryKeyName
+				//Check to noy bew foreign key on another column
 				if !isInPrimaryKeys(constr.ForeingColumnName) {
 					name = constr.ForeingColumnName
 				}
@@ -319,23 +282,64 @@ func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, prim
 			}
 
 			if err != nil {
-				return errors.New("Query nu a putut fii definit")
+				return queryNotDefined
 			}
 
 			err = executeQuery(tx, query)
+
 			if err != nil {
 				return err
 			}
 		}
-		// query, err := translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constraint.Name,
-		// 	column.Name, constraint.ForeingTableName, constraint.ForeingColumnName,
-		// 	constraint.UpdateRule, constraint.DeleteRule)
+
+		return err
+
+	})
+}
+
+func remakeConstraints(tx *sql.Tx, tables *db.Tables, tableName string, isInPrimaryKeys func(string) bool) error {
+	return tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
+		if !constraint.IsForeignKey() || constraint.ForeingTableName != tableName || !isInPrimaryKeys(constraint.ForeingColumnName) {
+			return nil
+		}
+
+		query, err := translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constraint.Name, column.Name, constraint.ForeingTableName, constraint.ForeingColumnName)
 
 		if err != nil {
-			return errors.New("Query nu a putut fii definit")
+			return queryNotDefined
 		}
 
 		return executeQuery(tx, query)
 
 	})
+}
+
+func removeAndAddPrimaryKey(tx *sql.Tx, tableName, newPrimaryKeyName, oldPrimaryKeyName string) error {
+	//Remove primary key constraints
+	query, err := translate.QT(legend.QueryREMOVECONSTRAINT, tableName, oldPrimaryKeyName)
+
+	if err != nil {
+		return err
+	}
+
+	err = executeQuery(tx, query)
+
+	if err != nil {
+		return err
+	}
+
+	//Add primary key constraint
+	query, err = translate.QT(legend.QueryADDPRIMARYKEY, tableName, newPrimaryKeyName)
+
+	if err != nil {
+		return err
+	}
+
+	err = executeQuery(tx, query)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

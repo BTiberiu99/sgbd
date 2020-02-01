@@ -15,6 +15,6 @@ var (
 		legend.MessagePrimaryKeySuccess:       "Cheia primara %s a fost adauga cu succes",
 		legend.MessagePrimaryKeyFail:          "Cheia primara %s nu a putut fii adaugata",
 		legend.MessagePrimaryKeySuccessFix:    "Cheia primara a fost reparata cu succes",
-		legend.MessagePrimaryKeyFailFix:       "Cheia primara nu a putut fii reparata",
+		legend.MessagePrimaryKeyFailFix:       "Cheia primara nu a putut fii reparata, error:%s ",
 	}
 )
