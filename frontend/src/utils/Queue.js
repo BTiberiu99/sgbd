@@ -18,6 +18,7 @@ const queue = function () {
         interval = null
     }
 
+    // Go to next Message
     function next () {
         var msg = nextMessage()
         if (!msg) {
@@ -60,6 +61,8 @@ const queue = function () {
         show: false,
         currentMessage: '',
         color: '',
+
+        // add message from the backend
         addMessage: function (response) {
             if (response.message && response.type) {
                 messages.push({
@@ -70,6 +73,8 @@ const queue = function () {
                 startQueue()
             }
         },
+
+        // reset the queue
         reset: function () {
             clearInterval(interval)
             startInterval()
