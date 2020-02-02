@@ -2,6 +2,7 @@ package response
 
 import "encoding/json"
 
+//Message ... is used to send messages and data back to the user interface
 type Message struct {
 	Type    string      `json:"type"`
 	Message string      `json:"message"`

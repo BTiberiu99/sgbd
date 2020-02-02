@@ -1,12 +1,21 @@
 <template>
   <v-container fluid class="px-0">
     <v-row>
-      <v-col cols="12" style="text-align:center;padding:25px;">
-        <v-btn :disabled="isLoading" :loading="isLoading" @click="run()">
+      <!-- Run Migrations -->
+      <v-col cols="4" style="text-align:left;padding:25px;">
+        <v-btn style="margin-left:25px;" @click="$migrations.run()">
+          Run Migrations
+        </v-btn>
+      </v-col>
+
+      <!-- Run User SQL-->
+      <v-col cols="6" offset="2" style="text-align:left;padding:25px;">
+        <v-btn :disabled="isLoading" :loading="isLoading" style="margin-right:50px;" @click="runSql">
           Run
         </v-btn>
       </v-col>
 
+      <!-- SQL Input -->
       <v-col cols="12" style="text-align:center;padding:25px;">
         <v-textarea
           v-model="sqlRun"
@@ -17,7 +26,9 @@
         />
       </v-col>
 
+      <!-- Data from SELECT  -->
       <v-col v-if="data" cols="12" style="text-align:center;padding:25px;">
+        <!-- Pagination -->
         <v-btn v-if="page > 1" style="margin-right:25px;" :disabled="isLoading" :loading="isLoading" @click="back">
           Back
         </v-btn>
@@ -28,8 +39,11 @@
         <span :key="page" class="text-left">
           Items from  {{ (page - 1) * limit }} to {{ page * limit - (limit - data.Rows.length) }}
         </span>
+
+        <!-- Data -->
         <v-simple-table style="margin-top:25px;" dark>
           <template v-slot:default>
+            <!-- Head of tabel -->
             <thead>
               <tr>
                 <th v-for="(item,index) in data.Columns" :key="index" class="text-center">
@@ -37,6 +51,8 @@
                 </th>
               </tr>
             </thead>
+
+            <!-- Body of table -->
             <tbody>
               <tr v-for="(item,index) in data.Rows" :key="index">
                 <td v-for="(item2,index2) in item" :key="index2">
@@ -54,6 +70,11 @@
 <script>
 import { getInstanceQueueMessage } from '@/utils/Queue.js'
 import { WAILSINIT } from '@/store/events'
+
+const regexLimit = new RegExp('LIMIT [0-9]*', 'g')
+const regexOffset = new RegExp('OFFSET [0-9]*', 'g')
+const regexLimitSimple = new RegExp('LIMIT', 'g')
+const regexOffsetSimple = new RegExp('OFFSET', 'g')
 export default {
   name: 'Run',
   filters: {
@@ -76,11 +97,12 @@ export default {
   data () {
     return {
       sqlRun: '',
-      message: '',
+      // Data
       data: null,
       limit: 15,
       page: 1,
-      keep: '',
+      keepSql: '',
+
       isLoading: false
     }
   },
@@ -92,17 +114,12 @@ export default {
     init () {
       this.isLoading = false
     },
+    // run sql
     async run (sql) {
       if (this.isLoading) return
       this.isLoading = true
 
-      var sqlRun = sql || this.sqlRun.replace(/\s\s+/g, ' ')
-
-      if (!sql && sqlRun.toUpperCase().indexOf(this.$static.SQL.SELECT) !== -1) {
-        this.page = 1
-        this.keep = sqlRun
-        sqlRun = this.paginate(sqlRun)
-      }
+      var sqlRun = sql.replace(/\s\s+/g, ' ')
 
       const rez = await this.$backend.Run({
         run: sqlRun
@@ -119,26 +136,41 @@ export default {
       this.isLoading = false
     },
 
-    async next () {
+    // run user input sql
+    async runSql () {
+      var sqlRun = this.sqlRun
+      if (sqlRun.toUpperCase().indexOf(this.$static.SQL.SELECT) !== -1) {
+        this.page = 1
+        this.keepSql = sqlRun
+        sqlRun = this.paginate(sqlRun)
+      }
+
+      this.run(sqlRun)
+    },
+
+    // go to the next page
+    next () {
       if (this.isLoading) return
 
       this.page = this.page + 1
 
-      await this.run(this.paginate(this.keep))
+      this.run(this.paginate(this.keepSql))
     },
-    async back () {
+    // go back one page
+    back () {
       if (this.isLoading) return
       this.page = this.page - 1
 
-      await this.run(this.paginate(this.keep))
+      this.run(this.paginate(this.keepSql))
     },
 
+    // paginate the query
     paginate (run) {
-      var regexLimit = new RegExp('LIMIT [0-9]*', 'g')
-      var regexOffset = new RegExp('OFFSET [0-9]*', 'g')
-      var regexLimitSimple = new RegExp('LIMIT', 'g')
-      var regexOffsetSimple = new RegExp('OFFSET', 'g')
-      return run.toUpperCase().replace(regexLimit, '').replace(regexOffset, '').replace(regexLimitSimple, '').replace(regexOffsetSimple, '') + ` LIMIT ${this.limit} OFFSET ${(this.page - 1) * this.limit}`
+      return run.toUpperCase()
+        .replace(regexLimit, '')
+        .replace(regexOffset, '')
+        .replace(regexLimitSimple, '')
+        .replace(regexOffsetSimple, '') + ` LIMIT ${this.limit} OFFSET ${(this.page - 1) * this.limit}`
     }
   }
 }

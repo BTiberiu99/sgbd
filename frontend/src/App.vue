@@ -34,12 +34,12 @@
             <v-icon v-show="conn.Index !== connectionActive" class="Connection__delete" @click="deleteConnection(conn)">
               mdi-delete
             </v-icon>
+            <v-icon v-show="conn.Index === connectionActive" class="Connection__active">
+              mdi-check
+            </v-icon>
             <span class="Connection__name" @click="switchConnection(conn)">
               {{ conn.Name }}
             </span>
-            <v-icon v-show="true" class="Connection__active">
-              mdi-check
-            </v-icon>
           </v-list-item-content>
         </v-list-item>
       </v-list>
@@ -55,7 +55,7 @@
     <v-content dark>
       <v-container dark fluid class="px-0">
         <v-layout dark ustify-center align-center class="px-0">
-          <component :is="component" :tables="tables" :is-loading-tables="isLoadingTables" dark @createconnection="createConnection" />
+          <component :is="component" :key="update" :tables="tables" :is-loading-tables="isLoadingTables" dark @createconnection="createConnection" />
         </v-layout>
       </v-container>
     </v-content>
@@ -122,7 +122,7 @@ import RunSQL from '@/views/Run.vue'
 import Tables from '@/views/Tables.vue'
 
 import TableComponent from '@/components/Table'
-
+import { migrate, createFakeData } from '@/utils/migration'
 import { getInstanceQueueMessage } from '@/utils/Queue.js'
 import { WAILSINIT, CREATECONNECTION, REFRESHTABLES } from '@/store/events'
 import { AppConnections } from '@/features/connections'
@@ -165,6 +165,7 @@ export default {
 
     tables: [],
     isLoadingTables: false,
+    update: 0,
 
     snack: getInstanceQueueMessage()
   }),
@@ -172,8 +173,31 @@ export default {
   created () {
     this.init()
 
-    // TODO:DELETES
-    // console.log(this.$static)
+    var _vm = this
+    window.run = async function (obj) {
+      var migr = true; var create = true
+      if (obj && typeof obj.migrate !== 'undefined') {
+        migr = obj.migrate
+      }
+
+      if (obj && typeof obj.create !== 'undefined') {
+        create = obj.create
+      }
+      try {
+        if (migr) {
+          await migrate(async (sql) => {
+            await _vm.$backend.Run({ run: sql })
+          })
+        }
+        if (create) {
+          createFakeData(async (sql) => {
+            await _vm.$backend.Run({ run: sql })
+          })
+        }
+      } catch (e) {
+        console.log(e)
+      }
+    }
   },
 
   methods: {
@@ -193,23 +217,28 @@ export default {
       if (this.isLoadingTables) return
 
       this.isLoadingTables = true
-      var start = Date.now()
-      const rez = await this.$backend.GetTables()
 
-      if (rez) {
-        this.tables = rez.map(table => {
-          return new Table(table)
-        })
+      var start = Date.now()
+      try {
+        const rez = await this.$backend.GetTables()
+
+        if (rez.data) {
+          this.tables = rez.data.map(table => {
+            return new Table(table)
+          })
+        }
+
         getInstanceQueueMessage().addMessage(rez)
+      } catch (e) {
+        console.log(e)
       }
 
       var end = Date.now()
       var elapsed = end - start // time in milliseconds
       setTimeout(() => {
         this.isLoadingTables = false
+        this.update++
       }, 300 - elapsed)
-
-      console.log('GET TABLES')
     },
 
     resetLoadings () {
@@ -258,7 +287,7 @@ export default {
 
   &__active {
     display: inline;
-    margin: 0 0 0 15px;
+    padding: 2px;
     &:hover {
       opacity: 0.6;
     }

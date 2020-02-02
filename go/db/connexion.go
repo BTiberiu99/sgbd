@@ -8,6 +8,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+//Connection ... models the connection with a database
 type Connection struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
@@ -18,17 +19,20 @@ type Connection struct {
 	database *Tables
 }
 
-func (c *Connection) String() string {
+//string... returns the sql connection string
+func (c *Connection) string() string {
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		c.Host, c.Port, c.User, c.Password, c.Database)
 }
 
+//SafeString ... returns an unique string of the connexion
 func (c *Connection) SafeString() string {
 
-	return utils.Sha512EmptyHash(fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable",
+	return utils.Sha512EmptyHash(fmt.Sprintf("%s_%d_%s_%s",
 		c.Host, c.Port, c.User, c.Database))
 }
 
+//Conx ... returns the underline sql db connection on Connexion struct
 func (c *Connection) Conx() *sql.DB {
 
 	if c.con == nil {
@@ -43,6 +47,7 @@ func (c *Connection) Conx() *sql.DB {
 	return c.con
 }
 
+//CheckConnection ... check if connection is still alive
 func (c *Connection) CheckConnection() error {
 
 	c.createConnection()
@@ -58,7 +63,9 @@ func (c *Connection) CheckConnection() error {
 
 func (c *Connection) createConnection() error {
 
-	con, err := sql.Open("postgres", c.String())
+	con, err := sql.Open("postgres", c.string())
+	con.SetMaxOpenConns(2)
+	con.SetMaxIdleConns(1)
 
 	if err != nil {
 		return err
@@ -69,6 +76,7 @@ func (c *Connection) createConnection() error {
 	return nil
 }
 
+//Tables ... Take all tables from database or cache
 func (c *Connection) Tables() *Tables {
 
 	if c.database != nil {
@@ -82,6 +90,7 @@ func (c *Connection) Tables() *Tables {
 	return c.database
 }
 
+//ResetTables ... Reset cached tables
 func (c *Connection) ResetTables() *Connection {
 	c.database = nil
 	return c

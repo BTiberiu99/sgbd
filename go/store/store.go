@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"sgbd4/go/db"
 	"sgbd4/go/utils"
@@ -63,6 +64,8 @@ func (s store) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+//Add ... add new connection to the store
 func (s store) Add(conn db.Connection) {
 	runThreadSafe(func() {
 		s[conn.SafeString()] = conn
@@ -70,6 +73,7 @@ func (s store) Add(conn db.Connection) {
 	s.writeToDisk()
 }
 
+//Get ... get the connection from the store
 func (s store) Get(index string) (db.Connection, bool) {
 	var (
 		conn  db.Connection
@@ -78,11 +82,13 @@ func (s store) Get(index string) (db.Connection, bool) {
 
 	runThreadSafe(func() {
 		conn, exist = s[index]
+		fmt.Println(s)
 	})
 
 	return conn, exist
 }
 
+//Remove ... remove the connection from the store
 func (s store) Remove(index string) {
 
 	runThreadSafe(func() {
@@ -92,6 +98,7 @@ func (s store) Remove(index string) {
 	s.writeToDisk()
 }
 
+//Connections ... takes all connections from the store
 func (s store) Connections() map[string]db.Connection {
 	z := make(map[string]db.Connection)
 
@@ -104,11 +111,12 @@ func (s store) Connections() map[string]db.Connection {
 	return z
 }
 
+//Save ... save the store to the hard disk
 func (s store) Save() {
 	s.writeToDisk()
 }
 
-func (s store) writeToDisk() {
+func (s *store) writeToDisk() {
 	runThreadSafe(func() {
 		file, _ := json.MarshalIndent(s, "", " ")
 

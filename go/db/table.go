@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sgbd4/go/legend"
 	"sgbd4/go/translate"
@@ -11,6 +10,7 @@ import (
 	"sync"
 )
 
+//Table ... models the table of a database
 type Table struct {
 	Name    string
 	Columns []*Column
@@ -58,8 +58,6 @@ func (t *Table) LoadTable() {
 	}
 
 	group.Wait()
-
-	fmt.Println(t.Columns)
 
 	//Sort columns
 	sort.Slice(t.Columns, func(i, j int) bool {

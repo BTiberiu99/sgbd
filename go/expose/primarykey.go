@@ -18,7 +18,16 @@ var (
 	transactionNotExecuted = errors.New("Nu s-a putut executa tranzactia")
 )
 
+//AddPrimaryKey ... set to a table without any primary key a new primary key that is autonumber
 func AddPrimaryKey(table, primaryKeyName string) response.Message {
+
+	if db.DB() == nil {
+		return response.Message{
+			Type:    legend.TypeError,
+			Message: translate.T(legend.MessageNoConnection),
+		}
+	}
+
 	query, err := translate.QT(legend.QueryADDPRIMARYKEY, table, primaryKeyName)
 
 	if err != nil {
@@ -37,28 +46,22 @@ func AddPrimaryKey(table, primaryKeyName string) response.Message {
 		}
 	}
 
-	//Reload table
-	data := db.Table{
-		Name: table,
-	}
-
-	data.LoadTable()
-
 	return response.Message{
 		Type:    legend.TypeSucces,
 		Message: translate.T(legend.MessagePrimaryKeySuccess, primaryKeyName),
-		Data:    data,
+		Data:    db.DB().ResetTables().Tables(),
 	}
 }
 
-func panicOnError(err error) {
-	if err != nil {
-		panic(err.Error())
-	}
-}
-
+//FixPrimaryKey ... solves two cases of the normalization of the primary key,
+//first is the one when an table has multiple primary kers the other one is when the primary key is not numeric
 func FixPrimaryKey(tableName, primaryKeyName string) (res response.Message) {
-
+	if db.DB() == nil {
+		return response.Message{
+			Type:    legend.TypeError,
+			Message: translate.T(legend.MessageNoConnection),
+		}
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			res = response.Message{
@@ -82,25 +85,37 @@ func FixPrimaryKey(tableName, primaryKeyName string) (res response.Message) {
 
 	//Drop constraints foreignkeys
 
-	panicOnError(tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
-		if !constraint.IsForeignKey() || constraint.ForeingTableName != tableName || !isInPrimaryKeys(constraint.ForeingColumnName) {
-			return nil
+	for _, key := range primaryKeys {
+		fmt.Println(key)
+		for _, constr := range key.Constraints {
+			if constr.IsForeignKey() {
+				query, err := translate.QT(legend.QueryREMOVECONSTRAINT, constr.ForeingTableName, constr.Name)
+
+				if err != nil {
+					panicOnError(queryNotDefined)
+				}
+
+				panicOnError(executeQuery(tx, query))
+			}
+
 		}
-
-		query, err := translate.QT(legend.QueryREMOVECONSTRAINT, table.Name, constraint.Name)
-
-		if err != nil {
-			return queryNotDefined
-		}
-
-		return executeQuery(tx, query)
-
-	}))
+	}
 
 	//Take first, because is same constraint
 	primaryKey := primaryKeys[0]
 
-	panicOnError(removeAndAddPrimaryKey(tx, tableName, primaryKeyName, primaryKey.Name))
+	var constr *db.Constraint
+
+	for _, con := range primaryKey.Constraints {
+		if con.IsPrimaryKey() {
+			constr = con
+			break
+		}
+	}
+
+	fmt.Println(*constr)
+
+	panicOnError(removeAndAddPrimaryKey(tx, tableName, primaryKeyName, constr.Name))
 
 	isMultiplePrimaryKeys := len(primaryKeys) > 1
 
@@ -113,7 +128,8 @@ func FixPrimaryKey(tableName, primaryKeyName string) (res response.Message) {
 	} else {
 
 		//Remake foreing constraints
-		panicOnError(remakeColumns(tx, &tables, primaryKeys, primaryKeyName, tableName, isInPrimaryKeys))
+		panicOnError(remakeColumns(tx, &tables, primaryKey, primaryKeyName, tableName))
+
 	}
 
 	err = tx.Commit()
@@ -130,17 +146,19 @@ func FixPrimaryKey(tableName, primaryKeyName string) (res response.Message) {
 func executeQuery(tx *sql.Tx, query string) error {
 
 	stmt, err := tx.PrepareContext(context.Background(), query)
-
-	defer stmt.Close()
-
+	fmt.Println(err, query)
 	if err != nil {
+		fmt.Println(err)
 		tx.Rollback()
 		return transactionNotPrepared
 	}
 
+	defer stmt.Close()
+
 	_, err = stmt.Exec()
 
 	if err != nil {
+		fmt.Println(err)
 		tx.Rollback()
 		return transactionNotExecuted
 	}
@@ -182,15 +200,16 @@ func takePrimaryKeys(tables db.Tables, tableName string) (func(string) bool, []*
 
 }
 
-func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, primaryKeyName, tableName string, isInPrimaryKeys func(string) bool) error {
-	return tables.Iterate(func(table *db.Table, column *db.Column, constraint *db.Constraint) error {
-		if !constraint.IsForeignKey() || constraint.ForeingTableName != tableName || !isInPrimaryKeys(constraint.ForeingColumnName) {
-			return nil
-		}
+func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKey *db.Column, primaryKeyName, tableName string) error {
+	//Load column with primary key to take type of new primary key
 
-		//Remove any constraint for this column
-		for _, constr := range column.Constraints {
-			query, err := translate.QT(legend.QueryREMOVECONSTRAINT, table.Name, constr.Name)
+	for _, constr := range primaryKey.Constraints {
+
+		if constr.IsForeignKey() {
+
+			//ADD HELPER
+			query, err := translate.QT(legend.QueryADDHELPER, constr.ForeingTableName)
+
 			if err != nil {
 				return queryNotDefined
 			}
@@ -199,87 +218,59 @@ func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, prim
 			if err != nil {
 				return err
 			}
-		}
 
-		//Create view with values temporary from the new primary key column
-		const alias = "value"
-		query, err := translate.QT(legend.QueryCREATEVIEW, strings.Join([]string{column.Name, table.Name, constraint.Name}, "_"), tableName, primaryKeyName,
-			primaryKeys[0].Name, column.Name, table.Name, alias)
+			//Create view with values temporary from the new primary key column
+			const alias = "value"
 
-		if err != nil {
-			return queryNotDefined
-		}
+			viewName := strings.Join([]string{constr.ForeingTableName, constr.ForeingColumnName}, "_")
 
-		err = executeQuery(tx, query)
+			query, err = translate.QT(legend.QueryCREATEVIEW, viewName, tableName, primaryKeyName,
+				primaryKey.Name, constr.ForeingTableName, constr.ForeingColumnName, alias)
 
-		if err != nil {
-			return err
-		}
+			if err != nil {
+				return queryNotDefined
+			}
 
-		//Drop this column
+			err = executeQuery(tx, query)
 
-		query, err = translate.QT(legend.QueryREMOVECOLUMN, table.Name, column.Name)
+			if err != nil {
+				return err
+			}
 
-		if err != nil {
-			return queryNotDefined
-		}
+			column := tables.FindColumn(constr.ForeingTableName, constr.ForeingColumnName)
 
-		err = executeQuery(tx, query)
-		if err != nil {
-			return err
-		}
+			fmt.Println(constr.ForeingTableName, constr.ForeingColumnName, column.Name)
+			//Drop all constraints on column
+			for _, constrCol := range column.Constraints {
 
-		//Load column with primary key to take type of new primary key
+				if constrCol.IsForeignKey() || constrCol.IsPrimaryKey() {
+					query, err := translate.QT(legend.QueryREMOVECONSTRAINT, constrCol.ForeingTableName, constrCol.Name)
+					if err != nil {
+						return queryNotDefined
+					}
 
-		aux := db.Column{
-			Name: primaryKeyName,
-		}
-
-		aux.Load(tableName)
-
-		//Create column back
-		query, err = translate.QT(legend.QueryADDCOLUMN, table.Name, column.Name, aux.Type)
-
-		if err != nil {
-			return queryNotDefined
-		}
-
-		err = executeQuery(tx, query)
-
-		if err != nil {
-			return err
-		}
-
-		//Take values from view and add them to the new column
-		query, err = translate.QT(legend.QueryREMAKECOLUMNS, table.Name, column.Name, alias, strings.Join([]string{column.Name, table.Name, constraint.Name}, "_"))
-
-		if err != nil {
-			return queryNotDefined
-		}
-
-		err = executeQuery(tx, query)
-		if err != nil {
-			return err
-		}
-
-		//Add back constraints
-		for _, constr := range column.Constraints {
-			var (
-				query string
-				err   error
-			)
-			if !constr.IsForeignKey() {
-				//Add normal constraints, NOT NULL ,CHECK etc
-				query, err = translate.QT(legend.QueryADDCONSTRAINT, table.Name, constr.Name)
-			} else {
-
-				name := primaryKeyName
-				//Check to noy bew foreign key on another column
-				if !isInPrimaryKeys(constr.ForeingColumnName) {
-					name = constr.ForeingColumnName
+					err = executeQuery(tx, query)
+					if err != nil {
+						return err
+					}
 				}
-				query, err = translate.QT(legend.QueryADDFOREIGNKEY, table.Name, constr.Name, column.Name, constr.ForeingTableName, name)
+
 			}
+
+			//Drop this column
+			query, err = translate.QT(legend.QueryREMOVECOLUMN, constr.ForeingTableName, constr.ForeingColumnName)
+
+			if err != nil {
+				return queryNotDefined
+			}
+
+			err = executeQuery(tx, query)
+			if err != nil {
+				return err
+			}
+
+			//Create column back
+			query, err = translate.QT(legend.QueryADDCOLUMN, constr.ForeingTableName, constr.ForeingColumnName, "INT4")
 
 			if err != nil {
 				return queryNotDefined
@@ -290,11 +281,68 @@ func remakeColumns(tx *sql.Tx, tables *db.Tables, primaryKeys []*db.Column, prim
 			if err != nil {
 				return err
 			}
+			fmt.Println("Am ajuns aici 3")
+			//Take values from view and add them to the new column
+			query, err = translate.QT(legend.QueryREMAKECOLUMNS, constr.ForeingTableName, constr.ForeingColumnName, viewName, alias)
+
+			if err != nil {
+				return queryNotDefined
+			}
+
+			err = executeQuery(tx, query)
+			if err != nil {
+				return err
+			}
+
+			//ADD HELPER
+			query, err = translate.QT(legend.QueryREMOVEHELPER, constr.ForeingTableName)
+
+			if err != nil {
+				return queryNotDefined
+			}
+
+			err = executeQuery(tx, query)
+			if err != nil {
+				return err
+			}
+
+			//Remake constraints on column
+
+			//Add back constraints
+			for _, constrCol := range column.Constraints {
+				var (
+					query string
+					err   error
+				)
+				if !constr.IsForeignKey() {
+					//Add normal constraints, NOT NULL ,CHECK etc
+					query, err = translate.QT(legend.QueryADDCONSTRAINT, constr.ForeingTableName, constrCol.Name, constrCol.Type)
+				} else {
+
+					query, err = translate.QT(legend.QueryADDFOREIGNKEY, constrCol.Name, constrCol.ForeingTableName, column.Name, constr.ForeingTableName)
+				}
+
+				if err != nil {
+					return queryNotDefined
+				}
+
+				err = executeQuery(tx, query)
+
+				if err != nil {
+					return err
+				}
+			}
 		}
+	}
 
-		return err
+	return nil
+}
 
-	})
+//panics if error is not null
+func panicOnError(err error) {
+	if err != nil {
+		panic(err.Error())
+	}
 }
 
 func remakeConstraints(tx *sql.Tx, tables *db.Tables, tableName string, isInPrimaryKeys func(string) bool) error {
@@ -314,9 +362,9 @@ func remakeConstraints(tx *sql.Tx, tables *db.Tables, tableName string, isInPrim
 	})
 }
 
-func removeAndAddPrimaryKey(tx *sql.Tx, tableName, newPrimaryKeyName, oldPrimaryKeyName string) error {
+func removeAndAddPrimaryKey(tx *sql.Tx, tableName, newPrimaryKeyName, oldConstraintPrimaryKeyName string) error {
 	//Remove primary key constraints
-	query, err := translate.QT(legend.QueryREMOVECONSTRAINT, tableName, oldPrimaryKeyName)
+	query, err := translate.QT(legend.QueryREMOVECONSTRAINT, tableName, oldConstraintPrimaryKeyName)
 
 	if err != nil {
 		return err
@@ -332,6 +380,7 @@ func removeAndAddPrimaryKey(tx *sql.Tx, tableName, newPrimaryKeyName, oldPrimary
 	query, err = translate.QT(legend.QueryADDPRIMARYKEY, tableName, newPrimaryKeyName)
 
 	if err != nil {
+
 		return err
 	}
 

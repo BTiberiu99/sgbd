@@ -5,6 +5,7 @@
       lazy-validation
     >
       <v-row>
+        <!-- Host -->
         <v-col class="d-flex" cols="12" sm="4" style="padding:35px;">
           <v-text-field
             v-model="form.host"
@@ -14,6 +15,7 @@
           />
         </v-col>
 
+        <!-- Port -->
         <v-col class="d-flex" cols="12" sm="4" style="padding:35px;">
           <v-text-field
             v-model="form.port"
@@ -23,6 +25,7 @@
           />
         </v-col>
 
+        <!-- User -->
         <v-col class="d-flex" cols="12" sm="4" style="padding:35px;">
           <v-text-field
             v-model="form.user"
@@ -33,6 +36,7 @@
           />
         </v-col>
 
+        <!-- Password -->
         <v-col class="d-flex" cols="12" sm="4" style="padding:35px;">
           <v-text-field
             v-model="form.password"
@@ -44,6 +48,7 @@
           />
         </v-col>
 
+        <!-- Database Name -->
         <v-col class="d-flex" cols="12" sm="4" style="padding:35px;">
           <v-text-field
             v-model="form.database"
@@ -53,6 +58,8 @@
           />
         </v-col>
       </v-row>
+
+      <!-- Buttons -->
       <v-row>
         <v-col class="d-flex" cols="12" sm="4" :offset="3" style="padding:35px;">
           <v-btn
@@ -97,7 +104,7 @@ export default {
   data () {
     var model = {
       host: '',
-      port: '',
+      port: 5432,
       user: '',
       password: '',
       database: ''
@@ -133,6 +140,8 @@ export default {
     resetLoadings () {
       this.isLoading = false
     },
+
+    // create connection
     createConnection () {
       if (this.isLoading) return
       if (!this.$refs.form.validate()) return
@@ -143,7 +152,7 @@ export default {
 
       this.$emit(CREATECONNECTION, this.form)
     },
-
+    // reset state after finishing creation of connections
     finishCreateConnection (r) {
       this.buttonColor = r.type
 

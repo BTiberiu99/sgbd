@@ -1,6 +1,7 @@
 <template>
   <v-container fluid class="px-0">
     <v-row style="padding:25px;">
+      <!-- Drop List with tables -->
       <v-col cols="4" class="TablesList">
         <div style="width:200px;">
           Tables
@@ -16,33 +17,48 @@
           />
         </div>
       </v-col>
+
+      <!-- Offset -->
       <v-col cols="8" style="text-align:center;" />
+
+      <!-- Current Tabel -->
       <v-col cols="8" offset="2" style="text-align:center;">
         <Table v-if="table" :table="table" style="margin:0 0 20px 0 ;" />
+
+        <!-- Buttons -->
+
+        <!-- NOT NULL -->
         <v-btn v-if="table && !table.HasOneNotNull" style="margin:0 40px 0 0;" @click="addNotNull(table)">
           Fix Not Null
         </v-btn>
 
+        <!-- PRIMARY KEY -->
         <v-btn v-if="table && (!table.HasPrimaryKey || !table.HasCorrectPrimaryKey)" @click="addPrimaryKey(table)">
           Fix Primary Key
         </v-btn>
       </v-col>
     </v-row>
 
+    <!-- Dialog with the user -->
     <v-dialog
       v-model="dialog"
       max-width="350"
     >
       <v-card v-if="table">
+        <!-- Title -->
         <v-card-title class="headline">
           {{ title }}
         </v-card-title>
 
         <v-card-text :key="table.vueKey">
           <!-- Not NULL check -->
+
+          <!-- NOT NULL CASE -->
           <template v-if="action === 'notnull'">
             <template v-if="!badConstruction">
               <h3>Columns</h3>
+
+              <!-- All Columns that can have NOT NULL CONSTRAINT -->
               <template v-for="(column,index) in table.Columns">
                 <v-checkbox v-if="!column.HasNotNull && !column.HasPrimaryKey && column.WithoutNULL"
                             :key="index"
@@ -52,6 +68,8 @@
                 />
               </template>
             </template>
+
+            <!-- Bad Construction -->
             <template v-else>
               <p>
                 Tabelul  {{ table.Name }} are intrari NULL in toate coloanele ,
@@ -61,13 +79,17 @@
             </template>
           </template>
 
+          <!-- PRIMARY KEY CASE -->
           <template v-if="action === 'primarykey'">
+            <!-- Text -->
             <template v-if="!table.HasPrimaryKey">
               Nu exista nicio cheie primara in tabel , introduceti numele mai jos ca sa creati una surogat
             </template>
             <template v-else>
               Cheia curenta primara nu este formata corect, introduceti numele mai jos ca sa creati una surogat
             </template>
+
+            <!-- Input Name Of Primary Key -->
             <v-text-field
               v-model="primaryKeyName"
               label="Nume"
@@ -80,7 +102,9 @@
           </template>
         </v-card-text>
 
+        <!-- Actions -->
         <v-card-actions>
+          <!-- Cancel -->
           <v-spacer />
 
           <v-btn
@@ -91,6 +115,7 @@
             Cancel
           </v-btn>
 
+          <!-- Continue -->
           <v-btn
             color="green darken-1"
             text
@@ -105,8 +130,7 @@
 </template>
 
 <script>
-import { WAILSINIT } from '@/store/events'
-import Column from '@/utils/Column'
+import { WAILSINIT, REFRESHTABLES } from '@/store/events'
 
 import { getInstanceQueueMessage } from '@/utils/Queue.js'
 export default {
@@ -124,13 +148,17 @@ export default {
 
   data () {
     return {
-      table: null,
-      dialog: false,
-      columnsNotNull: [],
-      continue: false,
-      wait: false,
+
       action: '',
+      dialog: false,
+      wait: false,
+      continue: false,
+
+      table: null,
+      columnsNotNull: [],
+
       primaryKeyName: '',
+
       isTakenName: false,
       validate: {
         notnull: () => true,
@@ -157,6 +185,8 @@ export default {
       switch (this.action) {
         case 'notnull':
           return 'Add NOT NULL'
+        case 'primarykey':
+          return 'Fix Primary Key'
         default:
           return ''
       }
@@ -170,25 +200,23 @@ export default {
     init () {
 
     },
-    getMessage () {
-      // var self = this;
 
-    },
-    print () {
-      console.log(arguments)
-    },
-
+    // cancel action taken by the user
     cancelAction () {
       this.dialog = false
       this.continue = false
       this.wait = false
     },
+
+    // continue action taken by the user if is valid
     continueAction () {
       if (!this.validate[this.action]()) return
       this.dialog = false
       this.continue = true
       this.wait = false
     },
+
+    // solve the primary key normalization
     async addPrimaryKey (table) {
       this.action = 'primarykey'
       this.wait = true
@@ -204,11 +232,12 @@ export default {
       if (rez) {
         getInstanceQueueMessage().addMessage(rez)
 
-        table.Columns = rez.data.Columns.map(col => {
-          return new Column(col)
-        })
+        if (rez.data) {
+          this.$root.$emit(REFRESHTABLES, rez.data)
+        }
       }
     },
+    // solve the constraints of existence normalization
     async addNotNull (table) {
       this.action = 'notnull'
       this.wait = true
@@ -219,7 +248,7 @@ export default {
 
       if (!this.continue) return
 
-      var items = await Promise.all(this.columnsNotNull.map(async (item) => {
+      await Promise.all(this.columnsNotNull.map(async (item) => {
         var rez = item
         if (!item.column.HasNotNull) {
           const response = await this.$backend.AddNotNull(table.Name, item.column)
@@ -234,13 +263,12 @@ export default {
         return rez
       }))
 
-      items.map(item => {
-        if (item.modified) {
-          table.Columns[item.index] = new Column(item.column)
-        }
-      })
+      getInstanceQueueMessage().addMessage(await this.$backend.ResetTables())
+
+      this.$root.$emit(REFRESHTABLES, true)
     },
 
+    // check the primaryKeyName to not be taken
     checkPrimaryKeyName () {
       let i
       this.isTakenName = false

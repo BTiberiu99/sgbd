@@ -2,10 +2,10 @@ package store
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 )
 
+//NewStore ... returns the instance of the singleton store
 func NewStore() store {
 	runThreadSafe(func() {
 		if instance == nil {
@@ -26,5 +26,5 @@ func init() {
 
 	_ = json.Unmarshal([]byte(file), &store)
 
-	fmt.Println(NewStore())
+	// fmt.Println(NewStore())
 }

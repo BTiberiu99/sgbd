@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+const (
+	logQuery = false
+)
+
 //T ... Translate message
 func T(index string, v ...interface{}) string {
 	return fmt.Sprintf(message[index], v...)
@@ -21,5 +25,8 @@ func QT(index string, in ...string) (s string, e error) {
 
 	s = postgres[index](in...)
 
+	if logQuery {
+		fmt.Println(s)
+	}
 	return s, e
 }

@@ -8,6 +8,6 @@ import (
 
 func Sha512EmptyHash(message string) string {
 	h := sha512.New()
-	io.WriteString(h, "")
+	io.WriteString(h, message)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }

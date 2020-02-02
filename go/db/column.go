@@ -139,6 +139,7 @@ func (c *Column) AddNotNull(table string) error {
 
 func (c *Column) AddConstrain(items ...string) {
 	c.existOrCreateSync()
+
 	c.sync(func() {
 		constr := &Constraint{}
 		if len(items) > 0 {

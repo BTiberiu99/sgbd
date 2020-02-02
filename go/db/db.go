@@ -8,10 +8,18 @@ var (
 	runThreadSafe = utils.CreateSyncFunc()
 )
 
+var (
+	reuse = map[string]*Connection{}
+)
+
 func UpdateConnection(conn *Connection) error {
 
 	runThreadSafe(func() {
-		db = conn
+		if _, ok := reuse[conn.SafeString()]; !ok {
+			reuse[conn.SafeString()] = conn
+		}
+
+		db = reuse[conn.SafeString()]
 		ActiveIndex = db.SafeString()
 	})
 	// fmt.Println(db, ActiveIndex)
@@ -26,5 +34,7 @@ func UpdateConnection(conn *Connection) error {
 }
 
 func DB() *Connection {
+	//Block when changes are made
+
 	return db
 }

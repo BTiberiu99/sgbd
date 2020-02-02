@@ -21,11 +21,13 @@ type ReturnRows struct {
 	Columns []string
 }
 
+//Run.. Runs sqls from the user on the database
 func Run(sql string) response.Message {
 
 	r := new(run)
 	json.Unmarshal([]byte(sql), &r)
-	if db.DB().Conx() == nil {
+
+	if db.DB() == nil {
 		return response.Message{
 			Type:    legend.TypeError,
 			Message: translate.T(legend.MessageNoConnection),
@@ -33,10 +35,9 @@ func Run(sql string) response.Message {
 	}
 
 	//Normalize query
-	r.Run = strings.TrimSpace(strings.ToUpper(r.Run))
 
 	//Check select
-	if strings.HasPrefix(r.Run, legend.SELECT) {
+	if strings.HasPrefix(strings.TrimSpace(strings.ToUpper(r.Run)), legend.SELECT) {
 
 		rows, err := db.DB().Conx().QueryContext(context.Background(), r.Run)
 
@@ -73,8 +74,6 @@ func Run(sql string) response.Message {
 					Message: err.Error(),
 				}
 
-				// c.Constraints = append(c.Constraints, Constraint{})
-
 			}
 			for key, val := range values {
 
@@ -104,6 +103,7 @@ func Run(sql string) response.Message {
 		}
 
 		err = rows.Err()
+
 		if err != nil {
 			return response.Message{
 				Type:    legend.TypeError,
@@ -120,7 +120,7 @@ func Run(sql string) response.Message {
 		//Check others types
 	} else {
 
-		z, err := db.DB().Conx().Exec(r.Run)
+		z, err := db.DB().Conx().ExecContext(context.Background(), r.Run)
 
 		if err != nil {
 			return response.Message{
@@ -128,12 +128,12 @@ func Run(sql string) response.Message {
 				Message: err.Error(),
 			}
 		}
+		fmt.Println(z.LastInsertId())
 		nr, _ := z.RowsAffected()
 
 		return response.Message{
 			Type:    legend.TypeSucces,
 			Message: translate.T(legend.MessageRowsAffected, nr),
-			Data:    z,
 		}
 
 	}

@@ -12,30 +12,38 @@ export const AppConnections = function () {
       }
     },
     methods: {
+
+      // take all connections from the store
       takeConnections () {
         this.connectionIsChangingRun(async () => {
           const rez = await this.$backend.GetConnections()
-          this.connections = rez
+          if (rez.data) {
+            this.connections = rez.data.Connections
+            this.connectionActive = rez.data.Index
+          }
         })
       },
+
+      // switch between connections
       switchConnection (conn) {
         this.connectionIsChangingRun(async () => {
           const rez = await this.$backend.SwitchConnection(conn)
 
-          this.connectionActive = rez.Index
+          this.connectionActive = rez.data.Index
         })
       },
 
+      // continue the delete of a connection
       continueDelete () {
         this.delete = true
         this.isDeletingConnection = false
       },
-
+      // cancel the delete of a connection
       cancelDelete () {
         this.delete = false
         this.isDeletingConnection = false
       },
-
+      // delete connection from the store
       async deleteConnection (conn) {
         this.delete = false
         this.isDeletingConnection = true
@@ -52,7 +60,7 @@ export const AppConnections = function () {
           getInstanceQueueMessage().addMessage(rez)
         })
       },
-
+      // create new connection
       createConnection (conn) {
         var rez
         this.connectionIsChangingRun(async () => {
@@ -78,12 +86,13 @@ export const AppConnections = function () {
         })
       },
 
+      // run changes to the connections
       async connectionIsChangingRun (call, final) {
         if (typeof call !== 'function') {
           throw new Error('First parameter must be an callback')
         }
-
-        // if (this.connectionIsChangingRun) return
+        console.log(this.connectionIsChanging)
+        if (this.connectionIsChanging) return
 
         this.connectionIsChanging = true
         var start = Date.now()

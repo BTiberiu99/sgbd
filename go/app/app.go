@@ -37,7 +37,7 @@ func LoadApp() {
 		//Run SQL
 		app.Bind(expose.Run)
 		app.Bind(expose.GetTables)
-
+		app.Bind(expose.ResetTables)
 		APP = app
 		app.Run()
 	}

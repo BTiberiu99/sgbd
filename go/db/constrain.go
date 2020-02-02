@@ -1,9 +1,11 @@
 package db
 
-import "strings"
+import (
+	"sgbd4/go/legend"
+	"strings"
+)
 
-import "sgbd4/go/legend"
-
+//Constraint ... models the constraints of a column
 type Constraint struct {
 	Name              string
 	Type              string

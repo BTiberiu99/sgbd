@@ -8,6 +8,7 @@ import (
 	"sync"
 )
 
+//Table ... one ore many Table of a database
 type Tables []*Table
 
 //Load all informations about tables from database
@@ -88,4 +89,17 @@ func (t Tables) Iterate(call func(*Table, *Column, *Constraint) error) error {
 		}
 	}
 	return err
+}
+
+func (t Tables) FindColumn(tableName, columnName string) *Column {
+	for _, table := range t {
+		for _, column := range table.Columns {
+			if table.Name == tableName && column.Name == columnName {
+				return column
+			}
+		}
+	}
+
+	return nil
+
 }
