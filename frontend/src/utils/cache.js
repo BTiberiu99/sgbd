@@ -12,17 +12,12 @@ export const cache = function (call, vm) {
     }]
 }
 
-export const resetCacheState = function (resetCache, call) {
-    return function () {
+export const resetCacheState = function (resetCache) {
+    return async function () {
         let i = 0
 
         for (; i < resetCache.length; i++) {
             resetCache[i]()
-        }
-
-        // console.log('RESET CONSTRAINT', constraint)
-        if (typeof call === 'function') {
-            call()
         }
     }
 }

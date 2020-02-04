@@ -2,6 +2,7 @@ package expose
 
 import (
 	"encoding/json"
+	"fmt"
 	"sgbd4/go/db"
 	"sgbd4/go/legend"
 	"sgbd4/go/response"
@@ -65,16 +66,16 @@ func RemoveConnection(str string) response.Message {
 		safeConn := &db.SafeConnection{}
 
 		json.Unmarshal([]byte(str), &safeConn)
-		_, is := store.NewStore().Get(utils.DecryptString(safeConn.Index))
-
+		_, is := store.NewStore().Get(safeConn.Index)
+		fmt.Println(is)
 		if is {
-			store.NewStore().Remove(utils.DecryptString(safeConn.Index))
+			store.NewStore().Remove(safeConn.Index)
 		}
 
 		msg = response.Message{
 			Type:    legend.TypeSucces,
 			Message: translate.T(legend.MessageConnectionSuccessRemove, safeConn.Name),
-			Data:    GetConnections(),
+			Data:    GetConnections().Data,
 		}
 	})
 
@@ -136,6 +137,8 @@ func SwitchConnection(str string) response.Message {
 
 				return
 			}
+		} else {
+			db.DB().ResetTables()
 		}
 
 		msg = response.Message{

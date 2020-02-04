@@ -211,6 +211,33 @@ export default {
       this.registerEvents()
       this.takeConnections()
       this.getTables()
+
+      // const test = () => {
+      //   const table = {
+      //     Name: 'test',
+      //     Columns: [
+      //       {
+      //         Name: 'test1',
+      //         Constraints: [
+      //           {
+      //             Name: 't1',
+      //             Type: ''
+      //           }
+      //         ]
+      //       }
+      //     ]
+      //   }
+      //   console.log(module)
+      //   var m = new Table(table)
+
+      //   console.log(m)
+      //   window.test = function () {
+      //     m.Columns[0].Constraints.push({ Name: 's', Type: 'NOT NULL' })
+      //     console.log(m)
+      //   }
+      // }
+
+      // test()
     },
 
     async getTables () {

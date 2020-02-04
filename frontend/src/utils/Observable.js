@@ -1,22 +1,37 @@
 // define a class
-export default function () {
+export default function (vm) {
+    if (!vm) return
+
     var observers = []
 
+    const _notify = async function () {
+        let i = 0
+
+        for (; i < observers.length; i++) {
+            observers[i](...arguments)
+        }
+    }
     // add the ability to subscribe to a new object / DOM element
     // essentially, add something to the observers array
-    this.subscribe = function (f) {
+    vm.subscribe = function (f) {
         observers.push(f)
+
+        return this
     }
 
     // add the ability to unsubscribe from a particular object
     // essentially, remove something from the observers array
-    this.unsubscribe = function (f) {
+    vm.unsubscribe = function (f) {
         observers = observers.filter(subscriber => subscriber !== f)
+
+        return this
     }
 
     // update all subscribed objects / DOM elements
     // and pass some data to each of them
-    this.notify = function () {
-        observers.forEach(observer => observer(...arguments))
+    vm.notify = function () {
+        _notify(...arguments)
+
+        return this
     }
 }

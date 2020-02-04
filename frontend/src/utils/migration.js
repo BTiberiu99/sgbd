@@ -12,11 +12,11 @@ const tables = [
         columns: [{
             name: 'first_name',
             faker: faker.name.firstName,
-            sql: 'VARCHAR'
+            sql: 'VARCHAR NULL'
         }, {
             name: 'last_name',
             faker: faker.name.lastName,
-            sql: 'VARCHAR'
+            sql: 'VARCHAR NULL'
         }],
         constraints: []
 
@@ -47,7 +47,7 @@ const tables = [
         }, {
             name: 'total_employees',
             faker: faker.random.number,
-            sql: 'NUMERIC'
+            sql: 'NUMERIC NULL'
         }],
         constraints: [
             'PRIMARY KEY (name)'
@@ -55,11 +55,39 @@ const tables = [
     },
     {
         await: 'companies',
+        name: 'addresses',
+        columns: [{
+            name: 'country NULL',
+            faker: faker.address.country,
+            sql: 'VARCHAR'
+        },
+        {
+            name: 'city',
+            faker: faker.address.city,
+            sql: 'VARCHAR NULL'
+        }, {
+            name: 'street',
+            faker: faker.address.streetName,
+            sql: 'VARCHAR NULL'
+        },
+        {
+            name: 'company',
+            faker: 'SELECT name FROM companies ORDER BY random() LIMIT 1',
+            sql: 'VARCHAR'
+        }],
+        constraints: [
+            'PRIMARY KEY (country,city,street)',
+            'CONSTRAINT company_name_fkey_addresses FOREIGN KEY (company) REFERENCES public.companies(name)'
+
+        ]
+    },
+    {
+        await: 'companies',
         name: 'jobs',
         columns: [{
             name: 'name',
-            faker: faker.address.city,
-            sql: 'VARCHAR'
+            faker: faker.name.jobTitle,
+            sql: 'VARCHAR NULL'
         }, {
             name: 'company',
             faker: 'SELECT name FROM companies ORDER BY random() LIMIT 1',
@@ -78,14 +106,35 @@ const tables = [
             faker: function () {
                 return faker.fake('{{name.lastName}} {{name.firstName}}')
             },
-            sql: 'VARCHAR'
+            sql: 'VARCHAR NULL'
         }, {
             name: 'job',
             faker: 'SELECT name  FROM jobs  ORDER BY random() LIMIT 1',
             sql: 'VARCHAR'
         }],
         constraints: [
+            'PRIMARY KEY(name)',
             'CONSTRAINT job_name_fkey FOREIGN KEY (job) REFERENCES public.jobs(name)'
+        ]
+    },
+    {
+        await: 'employees',
+        name: 'phones',
+        columns: [{
+            name: 'phone_number',
+            faker: () => {
+                return faker.phone.phoneNumber().toString()
+            },
+            sql: 'VARCHAR NULL'
+        },
+        {
+            name: 'employee',
+            faker: 'SELECT name  FROM employees  ORDER BY random() LIMIT 1',
+            sql: 'VARCHAR'
+        }],
+        constraints: [
+            'PRIMARY KEY (phone_number)',
+            'CONSTRAINT employee_name_fkey FOREIGN KEY (employee) REFERENCES public.employees(name)'
         ]
     }
 
@@ -113,7 +162,7 @@ export const migrate = async function (run) {
     }
     for (i = 0; i < tables.length; i++) {
         var sql = `CREATE TABLE public.${tables[i].name} (${columns(tables[i])})`
-
+        // console.log(sql)
         await run(sql)
     }
 }
@@ -161,7 +210,6 @@ export const createFakeData = async function (run, number = 10) {
             const done = function () {
                 counter++
 
-                console.log(counter, number)
                 if (counter === number) {
                     finishedCreateData[tables[lock].name] = true
                 }
@@ -180,11 +228,6 @@ export const createFakeData = async function (run, number = 10) {
 
 async function wait (index) {
     while (!finishedCreateData[index]) {
-        console.log(finishedCreateData)
-        await sleep(100)
+        await new Promise(resolve => setTimeout(resolve, 200))
     }
-}
-
-const sleep = (milliseconds) => {
-    return new Promise(resolve => setTimeout(resolve, milliseconds))
 }

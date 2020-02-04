@@ -1,18 +1,27 @@
 <template>
-  <div>
+  <div :key="table.keyVue">
+    <!-- Title -->
     <h3 class="Table__name">
       Table : {{ table.Name }}
-      <v-icon v-if="!table.IsSafe" :key="table.keyValue" class="danger">
-        mdi-close-octagon
-      </v-icon>
+
+      <v-tooltip v-if="!table.IsSafe" top>
+        <template v-slot:activator="{ on }">
+          <v-icon class="danger" v-on="on">
+            mdi-close-octagon
+          </v-icon>
+        </template>
+        <span class="danger">{{ table.Hint }}</span>
+      </v-tooltip>
     </h3>
     <v-expansion-panels :key="table.keyVue">
+      <!-- Columns -->
       <v-expansion-panel
         v-for="(column,indexColumn) in table.Columns"
-        :key="indexColumn"
+        :key="indexColumn +'_'+ column.keyVue"
         class="Column"
         :class="[{'Column--active':column.Constraints.length>0}]"
       >
+        <!-- Name && Type -->
         <v-expansion-panel-header class="Column__header">
           <div>
             <span>
@@ -24,6 +33,8 @@
             </span>
           </div>
         </v-expansion-panel-header>
+
+        <!-- Constraints -->
         <v-expansion-panel-content v-if="column.Constraints.length>0">
           <h4>Constraints</h4>
           <v-simple-table dark>
@@ -39,7 +50,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in column.Constraints" :key="item.name">
+                <tr v-for="(item,index) in column.Constraints" :key="index+'_'+ item.keyVue">
                   <td>{{ item.Name }}</td>
                   <td>{{ item.Type }}</td>
                 </tr>
@@ -63,24 +74,8 @@ export default {
       required: true
     }
 
-  },
-  data () {
-    return {
-      // tables: [],
-      // isLoading: false
-    }
-  },
-
-  created () {
-    this.init()
-  },
-  methods: {
-
-    init () {
-      // this.getTables()
-    }
-
   }
+
 }
 </script>
 

@@ -3,7 +3,7 @@
     <v-row>
       <!-- Run Migrations -->
       <v-col cols="4" style="text-align:left;padding:25px;">
-        <v-btn style="margin-left:25px;" @click="$migrations.run()">
+        <v-btn style="margin-left:25px;" @click="runMigrations">
           Run Migrations
         </v-btn>
       </v-col>
@@ -69,7 +69,7 @@
 
 <script>
 import { getInstanceQueueMessage } from '@/utils/Queue.js'
-import { WAILSINIT } from '@/store/events'
+import { WAILSINIT, REFRESHTABLES } from '@/store/events'
 
 const regexLimit = new RegExp('LIMIT [0-9]*', 'g')
 const regexOffset = new RegExp('OFFSET [0-9]*', 'g')
@@ -171,6 +171,10 @@ export default {
         .replace(regexOffset, '')
         .replace(regexLimitSimple, '')
         .replace(regexOffsetSimple, '') + ` LIMIT ${this.limit} OFFSET ${(this.page - 1) * this.limit}`
+    },
+    async runMigrations () {
+      await this.$migrations.run()
+      this.$emit(REFRESHTABLES)
     }
   }
 }

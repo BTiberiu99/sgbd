@@ -37,7 +37,7 @@ var (
 				panic("Trebuie sa introduceti numele tabelului si numele coloanei")
 			}
 
-			return fmt.Sprintf(`SELECT distinct
+			return fmt.Sprintf(`SELECT distinct on(ccu.constraint_name)
 				ccu.constraint_name,
 				tc.constraint_type,
 				tc.table_name AS foreign_table_name,

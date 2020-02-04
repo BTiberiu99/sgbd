@@ -22,7 +22,7 @@ Vue.config.devtools = true
 
 var cApp = null
 
-function parse (key) {
+function transform (call) {
 	return async function () {
 		const transformedArguments = []
 		let i
@@ -31,7 +31,7 @@ function parse (key) {
 		}
 
 		console.log('SEND ==>', transformedArguments)
-		var response = await window.backend[key](...transformedArguments)
+		var response = await call(...transformedArguments)
 		try {
 			if (typeof response === 'string') {
 				response = JSON.parse(response)
@@ -46,11 +46,13 @@ function parse (key) {
 }
 Wails.Init(() => {
 	if (cApp == null) {
-		var functions = {}
-		Object.keys(window.backend).map(key => {
-			functions[key] = parse(key)
-		})
-		Vue.prototype.$backend = functions
+		Vue.prototype.$backend = (function () {
+			var functions = {}
+			Object.keys(window.backend).map(key => {
+				functions[key] = transform(window.backend[key])
+			})
+			return functions
+		}())
 
 		cApp = new Vue({
 			vuetify,

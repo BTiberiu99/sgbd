@@ -5,15 +5,37 @@ var WatchJS = require('melanke-watchjs')
 var watch = WatchJS.watch
 
 const indexType = 'Type'
+
+export const isConstraint = (obj) => {
+    console.log(obj)
+    if (typeof obj !== 'object') {
+        return false
+    }
+
+    if (obj === null) {
+        return false
+    }
+
+    if (typeof obj.Type !== 'string' || typeof obj.Name !== 'string') {
+        return false
+    }
+
+    return true
+}
 export default function (constraint) {
-    var resetCache = []
     let i
-    const obs = new Observable()
+
+    this.keyVue = 0
+
+    Observable(this)
+
+    var resetCache = [() => {
+        this.keyVue++
+        this.notify()
+    }]
 
     // Reset all cache for an constraint
-    const reset = resetCacheState(resetCache, () => obs.notify())
-
-    this.$obs = obs
+    const reset = resetCacheState(resetCache)
 
     for (i in constraint) {
         this[i] = constraint[i]
@@ -31,7 +53,7 @@ export default function (constraint) {
             }
         })
 
-        resetCache.push(recalc)
+        resetCache.splice(0, 0, recalc)
     }
 
     watch(this, indexType, function () {

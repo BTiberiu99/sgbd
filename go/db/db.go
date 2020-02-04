@@ -1,6 +1,8 @@
 package db
 
-import "sgbd4/go/utils"
+import (
+	"sgbd4/go/utils"
+)
 
 var (
 	db            *Connection
@@ -17,6 +19,8 @@ func UpdateConnection(conn *Connection) error {
 	runThreadSafe(func() {
 		if _, ok := reuse[conn.SafeString()]; !ok {
 			reuse[conn.SafeString()] = conn
+		} else {
+			reuse[conn.SafeString()].ResetTables()
 		}
 
 		db = reuse[conn.SafeString()]

@@ -1,5 +1,5 @@
 import { getInstanceQueueMessage } from '@/utils/Queue.js'
-import { ENDCREATECONNECTION } from '@/store/events'
+import { ENDCREATECONNECTION, RERFRESHTABLES } from '@/store/events'
 export const AppConnections = function () {
   return {
     data () {
@@ -30,6 +30,8 @@ export const AppConnections = function () {
           const rez = await this.$backend.SwitchConnection(conn)
 
           this.connectionActive = rez.data.Index
+
+          this.$root.$emit(RERFRESHTABLES)
         })
       },
 
@@ -55,8 +57,11 @@ export const AppConnections = function () {
         this.connectionIsChangingRun(async () => {
           const rez = await this.$backend.RemoveConnection(conn)
 
-          this.connections = rez.Data
-
+          if (rez.data) {
+            this.connections = rez.data.Connections
+            this.connectionActive = rez.data.Index
+          }
+          console.log(this)
           getInstanceQueueMessage().addMessage(rez)
         })
       },

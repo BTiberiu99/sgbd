@@ -18,7 +18,7 @@ var (
 	transactionNotExecuted = errors.New("Nu s-a putut executa tranzactia")
 )
 
-//AddPrimaryKey ... set to a table without any primary key a new primary key that is autonumber
+//AddPrimaryKey... set to a table without any primary key a new primary key that is autonumber
 func AddPrimaryKey(table, primaryKeyName string) response.Message {
 
 	if db.DB() == nil {

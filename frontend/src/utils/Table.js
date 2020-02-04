@@ -1,5 +1,6 @@
 
-import Column from '@/utils/Column'
+import Column, { isColumn } from '@/utils/Column'
+import Observable from '@/utils/Observable'
 import { cache, resetCacheState } from '@/utils/cache'
 var WatchJS = require('melanke-watchjs')
 var watch = WatchJS.watch
@@ -8,36 +9,43 @@ const indexColumns = 'Columns'
 
 export default function (table) {
     let i
-    var resetCache = []
-
-    // Reset all cache for an table
-    const reset = resetCacheState(resetCache, () => this.keyVue++)
 
     this.keyVue = 0
 
+    var resetCache = [() => {
+        this.keyVue++
+        this.notify()
+    }]
+
+    Observable(this)
+
+    // Reset all cache for an table
+    const reset = resetCacheState(resetCache)
+
+    const defineProxy = {
+        get: function (target, name) {
+            return target[name]
+        },
+        set: function (target, name, val) {
+            if (val instanceof Column) {
+                val.unsubscribe(reset).subscribe(reset)
+            } else if (isColumn(val)) {
+                val = new Column(val).subscribe(reset)
+            }
+
+            target[name] = val
+
+            reset()
+
+            return true
+        }
+    }
+
     for (i in table) {
         if (i === indexColumns) {
-            var columns = table[i].map(column => {
-                const col = new Column(column)
-                col.$obs.subscribe(reset)
-                return col
-            })
-
-            var proxy = new Proxy(columns, {
-                get: function (target, name) {
-                    return target[name]
-                },
-                set: function (target, name, val) {
-                    if (val instanceof Column) {
-                        val.$obs.unsubscribe(reset)
-                        val.$obs.subscribe(reset)
-                    }
-
-                    target[name] = val
-
-                    return true
-                }
-            })
+            var proxy = new Proxy(table[i].map(column => {
+                return new Column(column).subscribe(reset)
+            }), defineProxy)
 
             Object.defineProperty(this, i, {
                 get () {
@@ -47,21 +55,7 @@ export default function (table) {
                     if (val instanceof Proxy) {
                         proxy = val
                     } else {
-                        proxy = new Proxy(val, {
-                            get: function (target, name) {
-                                return target[name]
-                            },
-                            set: function (target, name, val) {
-                                if (val instanceof Column) {
-                                    val.$obs.unsubscribe(reset)
-                                    val.$obs.subscribe(reset)
-                                }
-
-                                target[name] = val
-
-                                return true
-                            }
-                        })
+                        proxy = new Proxy(val, defineProxy)
                     }
                 }
             })
@@ -82,7 +76,7 @@ export default function (table) {
             }
         })
 
-        resetCache.push(recalc)
+        resetCache.splice(0, 0, recalc)
     }
 
     watch(this, indexColumns, function () {
@@ -131,6 +125,7 @@ const has = {
 
         var countPrimaryKeyNumber = 0
         var isNumericPrimaryKey = true
+
         iterateColumns((column) => {
             if (column.HasPrimaryKey) {
                 if (!column.IsNumeric) {
@@ -150,7 +145,7 @@ const has = {
         if (this.IsSafe) {
             return ''
         }
-        var start = `Tabelul ${this.Name} nu are `
+        var start = `Tabela ${this.Name} nu are `
         var notnull = 'cel putin o coloana not null inafara de cheia primara '
         var correctPrimaryKey = 'o cheie primara formata corect '
         var primaryKey = ' o cheie primara '
