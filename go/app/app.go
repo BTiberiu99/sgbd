@@ -38,7 +38,9 @@ func LoadApp() {
 		app.Bind(expose.Run)
 		app.Bind(expose.GetTables)
 		app.Bind(expose.ResetTables)
+
 		APP = app
+
 		app.Run()
 	}
 }

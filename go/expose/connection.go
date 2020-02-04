@@ -35,7 +35,7 @@ func CreateConnection(str string) response.Message {
 			return
 		}
 
-		if _, exist := store.NewStore().Get(conn.SafeString()); exist {
+		if _, exist := store.GetInstance().Get(conn.SafeString()); exist {
 			msg = response.Message{
 				Type:    legend.TypeWarning,
 				Message: translate.T(legend.MessageConnectionExist, conn.Database),
@@ -43,7 +43,7 @@ func CreateConnection(str string) response.Message {
 			return
 		}
 
-		store.NewStore().Add(*conn)
+		store.GetInstance().Add(*conn)
 
 		db.UpdateConnection(conn)
 
@@ -66,10 +66,10 @@ func RemoveConnection(str string) response.Message {
 		safeConn := &db.SafeConnection{}
 
 		json.Unmarshal([]byte(str), &safeConn)
-		_, is := store.NewStore().Get(safeConn.Index)
+		_, is := store.GetInstance().Get(safeConn.Index)
 		fmt.Println(is)
 		if is {
-			store.NewStore().Remove(safeConn.Index)
+			store.GetInstance().Remove(safeConn.Index)
 		}
 
 		msg = response.Message{
@@ -85,7 +85,7 @@ func RemoveConnection(str string) response.Message {
 //GetConnections ... get all the conections and the curent active connection
 func GetConnections() response.Message {
 
-	connections := store.NewStore().Connections()
+	connections := store.GetInstance().Connections()
 
 	safeConnections := make([]db.SafeConnection, len(connections))
 
@@ -113,7 +113,7 @@ func SwitchConnection(str string) response.Message {
 	json.Unmarshal([]byte(str), &safeConn)
 
 	runSafe(func() {
-		conn, exist := store.NewStore().Get(safeConn.Index)
+		conn, exist := store.GetInstance().Get(safeConn.Index)
 
 		if !exist {
 			msg = response.Message{
@@ -127,7 +127,7 @@ func SwitchConnection(str string) response.Message {
 
 			err := db.UpdateConnection(&conn)
 
-			store.NewStore().Save()
+			store.GetInstance().Save()
 
 			if err != nil {
 				msg = response.Message{

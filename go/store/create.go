@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 )
 
-//NewStore ... returns the instance of the singleton store
-func NewStore() store {
+//GetInstance ... returns the instance of the singleton store
+func GetInstance() store {
 	runThreadSafe(func() {
 		if instance == nil {
 			instance = make(store)
@@ -22,9 +22,9 @@ func init() {
 		return
 	}
 
-	store := NewStore()
+	store := GetInstance()
 
 	_ = json.Unmarshal([]byte(file), &store)
 
-	// fmt.Println(NewStore())
+	// fmt.Println(GetInstance())
 }
