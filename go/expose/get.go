@@ -1,6 +1,7 @@
 package expose
 
 import (
+	"fmt"
 	"sgbd4/go/db"
 	"sgbd4/go/legend"
 	"sgbd4/go/response"
@@ -9,30 +10,62 @@ import (
 
 //GetTables ... takes all tables from the database
 func GetTables() response.Message {
+	msg := response.Message{}
 
-	if db.DB() == nil {
-		return response.Message{
-			Type:    legend.TypeWarning,
-			Message: translate.T(legend.MessageConnectionNotExist),
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				msg = response.Message{
+					Type:    legend.TypeError,
+					Message: fmt.Sprint(r),
+				}
+			}
+		}()
+
+		if db.DB() == nil {
+			msg = response.Message{
+				Type:    legend.TypeWarning,
+				Message: translate.T(legend.MessageConnectionNotExist),
+			}
+			return
 		}
-	}
 
-	return response.Message{
-		Data: db.DB().Tables(),
-	}
+		msg = response.Message{
+			Data: db.DB().Tables(),
+		}
 
+	}()
+
+	// fmt.Println("DONE")
+
+	return msg
 }
 
 //ResetTables ... resets the cache of the tables
 func ResetTables() response.Message {
+	msg := response.Message{}
 
-	if db.DB() == nil {
-		return response.Message{
-			Type:    legend.TypeWarning,
-			Message: translate.T(legend.MessageConnectionNotExist),
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				msg = response.Message{
+					Type:    legend.TypeError,
+					Message: fmt.Sprint(r),
+				}
+			}
+		}()
+
+		if db.DB() == nil {
+			msg = response.Message{
+				Type:    legend.TypeWarning,
+				Message: translate.T(legend.MessageConnectionNotExist),
+			}
+			return
 		}
-	}
 
-	db.DB().ResetTables()
-	return response.Message{}
+		db.DB().ResetTables()
+
+	}()
+
+	return msg
 }

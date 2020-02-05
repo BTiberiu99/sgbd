@@ -2,7 +2,7 @@
   <v-container fluid class="Tables">
     <v-row style="padding:20px;">
       <template v-if="!isLoadingTables">
-        <v-col v-for="(table,index) in tables" :key="index" class="Table" cols="12" md="6">
+        <v-col v-for="(table,index) in tables" :key="index" class="Table" cols="12" lg="6">
           <Table :key="table.keyVue" :table="table" />
         </v-col>
       </template>

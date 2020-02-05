@@ -9,6 +9,7 @@ import (
 	"sgbd4/go/utils"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Column struct {
@@ -70,8 +71,10 @@ func (c *Column) loadCheckConstrains(table string, group *sync.WaitGroup) {
 func (c *Column) checkWithoutNull(table string, group *sync.WaitGroup) {
 	var count int
 	query, _ := translate.QT(legend.QueryCOUNTNOTNULL, table, c.Name)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	row := db.Conx().QueryRowContext(context.Background(), query)
+	row := db.Conx().QueryRowContext(ctx, query)
 	err := row.Scan(&count)
 	if err != nil {
 		log.Fatal(err)
@@ -82,8 +85,9 @@ func (c *Column) checkWithoutNull(table string, group *sync.WaitGroup) {
 }
 
 func (c *Column) loadQuery(query string) {
-
-	rows, err := db.Conx().QueryContext(context.Background(), query)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rows, err := db.Conx().QueryContext(ctx, query)
 
 	if err != nil {
 		log.Fatal(err)
@@ -131,8 +135,9 @@ func (c *Column) loadQuery(query string) {
 func (c *Column) AddNotNull(table string) error {
 
 	query, _ := translate.QT(legend.QuerySETNOTNULL, table, c.Name)
-
-	_, err := db.Conx().ExecContext(context.Background(), query)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := db.Conx().ExecContext(ctx, query)
 
 	return err
 }

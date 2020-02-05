@@ -26,6 +26,8 @@ export const AppConnections = function () {
 
       // switch between connections
       switchConnection (conn) {
+        console.log(this)
+        if (this.isLoadingTables) return
         this.connectionIsChangingRun(async () => {
           const rez = await this.$backend.SwitchConnection(conn)
 
@@ -47,6 +49,7 @@ export const AppConnections = function () {
       },
       // delete connection from the store
       async deleteConnection (conn) {
+        if (this.isLoadingTables) return
         this.delete = false
         this.isDeletingConnection = true
 
@@ -61,10 +64,11 @@ export const AppConnections = function () {
             this.connections = rez.data.Connections
             this.connectionActive = rez.data.Index
           }
-          console.log(this)
+          // console.log(this)
           getInstanceQueueMessage().addMessage(rez)
         })
       },
+
       // create new connection
       createConnection (conn) {
         var rez

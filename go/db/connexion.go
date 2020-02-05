@@ -21,7 +21,7 @@ type Connection struct {
 
 //string... returns the sql connection string
 func (c *Connection) string() string {
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable connect_timeout=5",
 		c.Host, c.Port, c.User, c.Password, c.Database)
 }
 
@@ -62,12 +62,24 @@ func (c *Connection) CheckConnection() error {
 }
 
 func (c *Connection) createConnection() error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+		}
+	}()
 
 	con, err := sql.Open("postgres", c.string())
 	con.SetMaxOpenConns(2)
 	con.SetMaxIdleConns(1)
 
 	if err != nil {
+		return err
+	}
+
+	err = con.Ping()
+
+	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 

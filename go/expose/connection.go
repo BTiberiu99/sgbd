@@ -17,9 +17,18 @@ var (
 
 //CreateConnection ... creates new connection with a database
 func CreateConnection(str string) response.Message {
-
 	var msg response.Message
+
 	runSafe(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				msg = response.Message{
+					Type:    legend.TypeError,
+					Message: fmt.Sprint(r),
+				}
+			}
+		}()
+
 		conn := &db.Connection{}
 
 		json.Unmarshal([]byte(str), &conn)
@@ -62,12 +71,21 @@ func CreateConnection(str string) response.Message {
 func RemoveConnection(str string) response.Message {
 
 	var msg response.Message
+
 	runSafe(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				msg = response.Message{
+					Type:    legend.TypeError,
+					Message: fmt.Sprint(r),
+				}
+			}
+		}()
 		safeConn := &db.SafeConnection{}
 
 		json.Unmarshal([]byte(str), &safeConn)
 		_, is := store.GetInstance().Get(safeConn.Index)
-		fmt.Println(is)
+
 		if is {
 			store.GetInstance().Remove(safeConn.Index)
 		}
@@ -113,6 +131,15 @@ func SwitchConnection(str string) response.Message {
 	json.Unmarshal([]byte(str), &safeConn)
 
 	runSafe(func() {
+
+		defer func() {
+			if r := recover(); r != nil {
+				msg = response.Message{
+					Type:    legend.TypeError,
+					Message: fmt.Sprint(r),
+				}
+			}
+		}()
 		conn, exist := store.GetInstance().Get(safeConn.Index)
 
 		if !exist {

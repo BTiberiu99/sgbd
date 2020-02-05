@@ -15,13 +15,15 @@ func LoadApp() {
 
 		js := mewn.String("./frontend/dist/app.js")
 		css := mewn.String("./frontend/dist/app.css")
+		html := mewn.String("./frontend/dist/index.html")
 
 		app := wails.CreateApp(&wails.AppConfig{
 			Width:     1024,
 			Height:    768,
-			Title:     "sgbd",
+			Title:     "Proiect SGBD",
 			JS:        js,
 			CSS:       css,
+			HTML:      html,
 			Colour:    "#131313",
 			Resizable: true,
 		})

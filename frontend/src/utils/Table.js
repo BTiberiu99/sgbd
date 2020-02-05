@@ -110,7 +110,7 @@ const iterateColumns = function (call, vm) {
 const has = {
     HasOneNotNull: function () {
         return iterateColumns((column) => {
-            return column.HasNotNull
+            return column.HasNotNull && !column.HasPrimaryKey
         }, this)
     },
     HasPrimaryKey: function () {
@@ -145,7 +145,7 @@ const has = {
         if (this.IsSafe) {
             return ''
         }
-        var start = `Tabela ${this.Name} nu are `
+        var start = `Tabelul ${this.Name} nu are `
         var notnull = 'cel putin o coloana not null inafara de cheia primara '
         var correctPrimaryKey = 'o cheie primara formata corect '
         var primaryKey = ' o cheie primara '

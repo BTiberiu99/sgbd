@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 //Table ... models the table of a database
@@ -19,8 +20,9 @@ type Table struct {
 //Load ... Load all informations about an table from database
 func (t *Table) LoadTable() {
 	query, _ := translate.QT(legend.QueryCOLUMNS, t.Name)
-
-	rows, err := db.Conx().QueryContext(context.Background(), query)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rows, err := db.Conx().QueryContext(ctx, query)
 
 	if err != nil {
 		log.Fatal(err)

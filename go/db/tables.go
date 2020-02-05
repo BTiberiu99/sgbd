@@ -6,6 +6,7 @@ import (
 	"sgbd4/go/legend"
 	"sgbd4/go/translate"
 	"sync"
+	"time"
 )
 
 //Table ... one ore many Table of a database
@@ -15,7 +16,10 @@ type Tables []*Table
 func CreateTables() Tables {
 	query, _ := translate.QT(legend.QueryTABLES)
 
-	rows, err := db.Conx().QueryContext(context.Background(), query)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rows, err := db.Conx().QueryContext(ctx, query)
 
 	if err != nil {
 		log.Fatal(err)

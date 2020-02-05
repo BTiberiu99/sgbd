@@ -40,6 +40,13 @@
             <span class="Connection__name" @click="switchConnection(conn)">
               {{ conn.Name }}
             </span>
+            <v-progress-circular
+              v-show="conn.Index === connectionActive && isLoadingTables"
+              indeterminate
+              color="primary"
+              class="Connection__loading"
+              style="width:22px;height:22px;"
+            />
           </v-list-item-content>
         </v-list-item>
       </v-list>
@@ -67,6 +74,7 @@
       v-model="snack.show"
       :top="true"
       :color="snack.color"
+      @click:outside="cancelDelete"
     >
       {{ snack.currentMessage }}
       <v-btn
@@ -262,9 +270,12 @@ export default {
 
       var end = Date.now()
       var elapsed = end - start // time in milliseconds
+      console.log(300 - elapsed)
       setTimeout(() => {
         this.isLoadingTables = false
         this.update++
+
+        console.log(this)
       }, 300 - elapsed)
     },
 

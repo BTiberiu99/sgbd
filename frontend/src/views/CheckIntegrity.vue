@@ -43,6 +43,7 @@
     <v-dialog
       v-model="dialog"
       max-width="350"
+      @click:outside="cancelAction"
     >
       <v-card v-if="table">
         <!-- Title -->
@@ -55,7 +56,7 @@
 
           <!-- NOT NULL CASE -->
           <template v-if="action === 'notnull'">
-            <template v-if="!badConstruction">
+            <template v-if="badConstruction === 0">
               <h3>Columns</h3>
 
               <!-- All Columns that can have NOT NULL CONSTRAINT -->
@@ -70,11 +71,18 @@
             </template>
 
             <!-- Bad Construction -->
-            <template v-else>
+            <template v-else-if="badConstruction === 1">
               <p>
-                Tabelul  {{ table.Name }} are intrari NULL in toate coloanele ,
+                Tabelul  {{ table.Name }} are intrari NULL in toate coloanele care nu au constrangere de cheie primara,
                 astfel neputand sa se adauge o constrangere not null asupra niciunei coloane,
-                stergeti toate intrarile NULL ale unei coloane ca sa puteti adauga o constrangere not null
+                completati toate intrarile NULL ale unei coloane ca sa puteti adauga o constrangere not null
+              </p>
+            </template>
+
+            <template v-else-if="badConstruction === 2">
+              <p>
+                Tabelul  {{ table.Name }} nu are nicio coloana inafara de coloane cu constrangeri de cheie primara.
+                Adaugati o noua coloana fara intrari NULL
               </p>
             </template>
           </template>
@@ -170,16 +178,22 @@ export default {
   computed: {
     badConstruction () {
       let count = 0
-
+      let countPrimaryKeys = 0
       if (this.table !== null) {
         this.table.Columns.map(column => {
           if (!column.HasPrimaryKey && column.WithoutNULL) {
             count++
+          } else if (column.HasPrimaryKey) {
+            countPrimaryKeys++
           }
         })
       }
 
-      return count < 1
+      if (countPrimaryKeys === this.table.Columns.length) {
+        return 2
+      }
+
+      return count < 1 ? 1 : 0
     },
     title () {
       switch (this.action) {
@@ -223,6 +237,9 @@ export default {
       this.dialog = true
       var rez
       await this.$sync(() => !this.wait)
+
+      if (!this.continue) return
+
       if (!table.HasPrimaryKey) {
         rez = await this.$backend.AddPrimaryKey(table.Name, this.primaryKeyName)
       } else {

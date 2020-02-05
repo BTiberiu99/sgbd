@@ -3,7 +3,7 @@
     <v-row>
       <!-- Run Migrations -->
       <v-col cols="4" style="text-align:left;padding:25px;">
-        <v-btn style="margin-left:25px;" @click="runMigrations">
+        <v-btn style="margin-left:25px;" :disabled="isRunningMigrations" :loading="isRunningMigrations" @click="runMigrations">
           Run Migrations
         </v-btn>
       </v-col>
@@ -103,7 +103,8 @@ export default {
       page: 1,
       keepSql: '',
 
-      isLoading: false
+      isLoading: false,
+      isRunningMigrations: false
     }
   },
 
@@ -173,7 +174,12 @@ export default {
         .replace(regexOffsetSimple, '') + ` LIMIT ${this.limit} OFFSET ${(this.page - 1) * this.limit}`
     },
     async runMigrations () {
-      await this.$migrations.run()
+      if (this.isRunningMigrations) return
+      this.isRunningMigrations = true
+      try {
+        await this.$migrations.run()
+      } catch (e) { }
+      this.isRunningMigrations = false
       this.$emit(REFRESHTABLES)
     }
   }

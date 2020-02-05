@@ -10,6 +10,7 @@ import (
 	"sgbd4/go/response"
 	"sgbd4/go/translate"
 	"strings"
+	"time"
 )
 
 var (
@@ -37,7 +38,10 @@ func AddPrimaryKey(table, primaryKeyName string) response.Message {
 		}
 	}
 
-	_, err = db.DB().Conx().ExecContext(context.Background(), query)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = db.DB().Conx().ExecContext(ctx, query)
 
 	if err != nil {
 		return response.Message{
@@ -79,7 +83,10 @@ func FixPrimaryKey(tableName, primaryKeyName string) (res response.Message) {
 		panic("Nu exista nicio cheie primara")
 	}
 
-	tx, err := db.DB().Conx().BeginTx(context.Background(), nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tx, err := db.DB().Conx().BeginTx(ctx, nil)
 
 	panicOnError(err)
 
@@ -144,8 +151,10 @@ func FixPrimaryKey(tableName, primaryKeyName string) (res response.Message) {
 }
 
 func executeQuery(tx *sql.Tx, query string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	stmt, err := tx.PrepareContext(context.Background(), query)
+	stmt, err := tx.PrepareContext(ctx, query)
 	fmt.Println(err, query)
 	if err != nil {
 		fmt.Println(err)
